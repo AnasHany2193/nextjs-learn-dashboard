@@ -6,6 +6,8 @@ import postgres from "postgres";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
+if (!process.env.POSTGRES_URL)
+  throw new Error("Missing POSTGRES_URL environment variable");
 const sql = postgres(process.env.POSTGRES_URL!, { ssl: "require" });
 
 const FormSchema = z.object({

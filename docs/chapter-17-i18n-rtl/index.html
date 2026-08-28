@@ -1,0 +1,1078 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Adding /en and /ar routing plus Arabic RTL to the Next.js Learn dashboard: locale routing, proxy composition with next-auth, logical Tailwind properties, and locale-aware formatting.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Bilingual routing and Arabic RTL">
+<meta property="og:description" content="A six-step chapter plan for adding /en and /ar routing and Arabic RTL to the Acme dashboard.">
+<meta property="og:url" content="https://anashany2193.github.io/nextjs-learn-dashboard/chapter-17-i18n-rtl/">
+<meta name="twitter:card" content="summary_large_image">
+<title>Bilingual Acme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --bg:        #ffffff;
+    --surface:   #f6f7f9;
+    --surface-2: #eef1f4;
+    --ink:       #0b0d0e;
+    --ink-2:     #3a424c;
+    --muted:     #5c6470;
+    --rule:      #e2e6ea;
+    --rule-2:    #cfd5dc;
+    --accent:    #0070f3;
+    --accent-ink:#0057c2;
+    --accent-wash:#eaf2ff;
+    --warn:      #a2560c;
+    --warn-wash: #fdf2e4;
+    --warn-rule: #eccfa5;
+    --ok:        #0f7b5f;
+    --ok-wash:   #e7f4ef;
+    --ok-rule:   #b3ddcd;
+    --code-bg:   #f6f7f9;
+
+    --f-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --f-mono: "Geist Mono", ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    --f-ar:   "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:        #0b0d0e;
+      --surface:   #141719;
+      --surface-2: #1c2023;
+      --ink:       #e9ecef;
+      --ink-2:     #b6bdc5;
+      --muted:     #868f99;
+      --rule:      #24292e;
+      --rule-2:    #333a41;
+      --accent:    #2589fe;
+      --accent-ink:#63aaff;
+      --accent-wash:#11212f;
+      --warn:      #e0a244;
+      --warn-wash: #241c0f;
+      --warn-rule: #4a3a1d;
+      --ok:        #35b08a;
+      --ok-wash:   #0e1f1a;
+      --ok-rule:   #1f4437;
+      --code-bg:   #101315;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg:        #0b0d0e;
+    --surface:   #141719;
+    --surface-2: #1c2023;
+    --ink:       #e9ecef;
+    --ink-2:     #b6bdc5;
+    --muted:     #868f99;
+    --rule:      #24292e;
+    --rule-2:    #333a41;
+    --accent:    #2589fe;
+    --accent-ink:#63aaff;
+    --accent-wash:#11212f;
+    --warn:      #e0a244;
+    --warn-wash: #241c0f;
+    --warn-rule: #4a3a1d;
+    --ok:        #35b08a;
+    --ok-wash:   #0e1f1a;
+    --ok-rule:   #1f4437;
+    --code-bg:   #101315;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--f-sans);
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 24px 96px;
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+    gap: 56px;
+    align-items: start;
+  }
+
+  /* ---------- rail ---------- */
+  .rail {
+    position: sticky;
+    top: 0;
+    padding: 56px 0 40px;
+    max-height: 100vh;
+    overflow-y: auto;
+  }
+  .rail-title {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+  .rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+  .rail a {
+    display: grid;
+    grid-template-columns: 22px 1fr;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 5px;
+    text-decoration: none;
+    color: var(--ink-2);
+    font-size: 13.5px;
+    line-height: 1.4;
+    border-inline-start: 2px solid transparent;
+  }
+  .rail a:hover { background: var(--surface); color: var(--ink); }
+  .rail a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .rail .n {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    color: var(--muted);
+    padding-top: 3px;
+  }
+  .rail .sep {
+    margin: 14px 0 8px;
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ---------- main ---------- */
+  main { padding: 56px 0 0; min-width: 0; }
+  .prose { max-width: 68ch; }
+
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 12px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 12px;
+  }
+
+  h1 {
+    font-size: clamp(30px, 4vw, 42px);
+    line-height: 1.12;
+    letter-spacing: -.024em;
+    font-weight: 650;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--ink-2);
+    margin: 0 0 8px;
+    max-width: 62ch;
+  }
+
+  h2 {
+    font-size: 25px;
+    line-height: 1.25;
+    letter-spacing: -.018em;
+    font-weight: 600;
+    margin: 64px 0 14px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    text-wrap: balance;
+  }
+  h2 .step-n {
+    font-family: var(--f-mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    display: block;
+    letter-spacing: .06em;
+    margin-bottom: 6px;
+  }
+  h3 {
+    font-size: 16.5px;
+    font-weight: 600;
+    letter-spacing: -.008em;
+    margin: 32px 0 10px;
+  }
+  h4 {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 26px 0 8px;
+  }
+
+  p { margin: 0 0 14px; }
+  a { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+  strong { font-weight: 600; color: var(--ink); }
+
+  ul, ol.body-list { margin: 0 0 14px; padding-inline-start: 20px; }
+  li { margin-bottom: 6px; }
+  li::marker { color: var(--muted); }
+
+  code {
+    font-family: var(--f-mono);
+    font-size: .875em;
+    background: var(--surface-2);
+    padding: .12em .34em;
+    border-radius: 3px;
+    color: var(--ink);
+  }
+
+  /* ---------- code blocks ---------- */
+  .code {
+    margin: 18px 0 22px;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--code-bg);
+  }
+  .code-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--rule);
+    font-family: var(--f-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .code-head .path { color: var(--ink-2); }
+  .code-head .tag {
+    font-size: 10px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--rule-2);
+    white-space: nowrap;
+  }
+  .tag.new { color: var(--ok); border-color: var(--ok-rule); background: var(--ok-wash); }
+  .tag.edit { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-wash); }
+  .code pre {
+    margin: 0;
+    padding: 14px;
+    overflow-x: auto;
+    font-family: var(--f-mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--ink);
+    tab-size: 2;
+  }
+  .code pre code { background: none; padding: 0; font-size: inherit; }
+  .c { color: var(--muted); }
+  .del { color: var(--warn); }
+  .add { color: var(--ok); }
+
+  /* ---------- callouts ---------- */
+  .note {
+    margin: 20px 0;
+    padding: 14px 16px;
+    border: 1px solid var(--rule);
+    border-inline-start: 3px solid var(--accent);
+    border-radius: 6px;
+    background: var(--surface);
+    font-size: 15px;
+  }
+  .note > :last-child { margin-bottom: 0; }
+  .note .lbl {
+    display: block;
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .note.warn { border-inline-start-color: var(--warn); background: var(--warn-wash); border-color: var(--warn-rule); }
+  .note.warn .lbl { color: var(--warn); }
+  .note.ok { border-inline-start-color: var(--ok); background: var(--ok-wash); border-color: var(--ok-rule); }
+  .note.ok .lbl { color: var(--ok); }
+
+  /* ---------- learn box ---------- */
+  .learn {
+    margin: 32px 0 8px;
+    padding: 22px 24px;
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    background: var(--surface);
+  }
+  .learn h4 { margin-top: 0; }
+  .learn ul { margin-bottom: 0; }
+
+  /* ---------- checkpoint ---------- */
+  .check {
+    margin: 20px 0 0;
+    padding: 12px 16px;
+    border: 1px dashed var(--rule-2);
+    border-radius: 6px;
+    font-size: 14.5px;
+    color: var(--ink-2);
+    background: transparent;
+  }
+  .check .lbl {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-inline-end: 8px;
+  }
+  .check > :last-child { margin-bottom: 0; }
+
+  /* ---------- files touched ---------- */
+  .files { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 20px; }
+  .file {
+    font-family: var(--f-mono);
+    font-size: 12px;
+    padding: 3px 8px;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .file.is-new { border-color: var(--ok-rule); color: var(--ok); background: var(--ok-wash); }
+
+  /* ---------- table ---------- */
+  .table-wrap { overflow-x: auto; margin: 18px 0 22px; border: 1px solid var(--rule); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: start; padding: 9px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    background: var(--surface);
+    white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: none; }
+  td code { font-size: 12.5px; white-space: nowrap; }
+
+  /* ---------- bidi specimen ---------- */
+  .bidi {
+    margin: 24px 0;
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .bidi-head {
+    padding: 8px 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--rule);
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .bidi-grid { display: grid; grid-template-columns: 1fr 1fr; }
+  .bidi-cell { padding: 18px; min-width: 0; }
+  .bidi-cell + .bidi-cell { border-inline-start: 1px solid var(--rule); }
+  .bidi-cell .dirlabel {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+  .mini {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 11px;
+    border-radius: 6px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  .mini:last-child { margin-bottom: 0; }
+  .mini .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
+  .mini .amt { margin-inline-start: auto; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
+  [dir="rtl"] .mini, .ar { font-family: var(--f-ar); }
+
+  /* ---------- footer commit ---------- */
+  .commit {
+    margin: 18px 0;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .commit pre {
+    margin: 0;
+    padding: 14px;
+    background: var(--code-bg);
+    font-family: var(--f-mono);
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: auto;
+    color: var(--ink);
+  }
+
+  .verdict {
+    margin: 40px 0 0;
+    padding: 20px 22px;
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    background: var(--surface);
+  }
+  .verdict h3 { margin-top: 0; }
+  .verdict > :last-child { margin-bottom: 0; }
+
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; gap: 0; padding: 0 20px 72px; }
+    .rail {
+      position: static;
+      max-height: none;
+      padding: 32px 0 0;
+      border-bottom: 1px solid var(--rule);
+      margin-bottom: 8px;
+      padding-bottom: 20px;
+    }
+    .rail ol { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 2px; }
+    main { padding-top: 32px; }
+    .bidi-grid { grid-template-columns: 1fr; }
+    .bidi-cell + .bidi-cell { border-inline-start: none; border-top: 1px solid var(--rule); }
+  }
+</style>
+
+</head>
+<body>
+<div class="shell">
+
+  <nav class="rail" aria-label="Chapter contents">
+    <p class="rail-title">Chapter 17</p>
+    <ol>
+      <li><a href="#decisions"><span class="n">—</span><span>Decisions</span></a></li>
+      <li><a href="#s1"><span class="n">01</span><span>Install &amp; route config</span></a></li>
+      <li><a href="#s2"><span class="n">02</span><span>Move routes under [locale]</span></a></li>
+      <li><a href="#s3"><span class="n">03</span><span>Compose the proxy</span></a></li>
+      <li><a href="#s4"><span class="n">04</span><span>Locale-aware navigation</span></a></li>
+      <li><a href="#s5"><span class="n">05</span><span>Direction &amp; RTL styles</span></a></li>
+      <li><a href="#s6"><span class="n">06</span><span>Metadata &amp; switcher</span></a></li>
+      <li class="sep">After</li>
+      <li><a href="#commit"><span class="n">—</span><span>Commit</span></a></li>
+      <li><a href="#honest"><span class="n">—</span><span>What this isn't</span></a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <div class="prose">
+
+      <p class="eyebrow">Self-directed · Chapter 17</p>
+      <h1>Bilingual routing and Arabic RTL</h1>
+      <p class="standfirst">Take the Acme dashboard from one hardcoded English tree to <code>/en</code> and <code>/ar</code> routes with a properly mirrored layout — and find every place the course quietly assumed left-to-right.</p>
+
+      <div class="learn">
+        <h4>In this chapter</h4>
+        <ul>
+          <li>Add locale routing with <strong>next-intl</strong>, verified against your installed Next 16.3.3</li>
+          <li>Move every page under an <code>app/[locale]/</code> segment without breaking the route handlers</li>
+          <li>Compose <strong>two</strong> proxies — locale detection and auth — into one <code>proxy.ts</code></li>
+          <li>Replace ~55 physical-direction Tailwind utilities across 17 files with logical ones</li>
+          <li>Fix the currency, date and numeral formatting the course hardcoded to <code>en-US</code></li>
+          <li>Emit <code>hreflang</code> alternates, and understand why they do nothing for this app</li>
+        </ul>
+      </div>
+
+      <h2 id="decisions">Decisions, made up front</h2>
+      <p>Three choices shape everything downstream. Here they are with the reasoning, so you can disagree before you write code rather than halfway through step 4.</p>
+
+      <h3>next-intl, not hand-rolled</h3>
+      <p>The App Router has no built-in i18n routing — the <code>i18n</code> key in <code>next.config</code> is Pages Router only. "Built-in" really means hand-writing locale detection, a message loader, and a <code>Link</code> wrapper. That teaches you the mechanism, but you'd be rebuilding a solved problem, and your day job is an Arabic Next.js site where knowing the library people actually use is worth more.</p>
+
+      <div class="note ok">
+        <span class="lbl">Verified</span>
+        <p>next-intl <strong>4.14.0</strong> declares <code>next: "… || ^16.0.0"</code> and <code>react: "… || ^19.0.0"</code> in its peer dependencies, so it's compatible with your 16.3.3 / 19.2.8. Its published entrypoints include <code>/routing</code>, <code>/navigation</code>, <code>/middleware</code>, <code>/server</code>, <code>/plugin</code> and <code>/config</code>.</p>
+      </div>
+
+      <div class="note warn">
+        <span class="lbl">Naming gotcha</span>
+        <p>Next 16 renamed the file to <code>proxy.ts</code>, but next-intl has <strong>no</strong> <code>next-intl/proxy</code> entrypoint. You still import <code>createMiddleware</code> from <code>next-intl/middleware</code> — inside a file called <code>proxy.ts</code>. That mismatch is correct, not a bug.</p>
+      </div>
+
+      <h3>Always prefix the locale</h3>
+      <p>Three options: <code>always</code> (<code>/en/dashboard</code>, <code>/ar/dashboard</code>), <code>as-needed</code> (<code>/dashboard</code> for English, <code>/ar/dashboard</code> for Arabic), or <code>never</code>.</p>
+      <p>Go with <code>always</code>. In an app where neither language is really "the default", <code>as-needed</code> makes English an invisible privileged case, and every debugging session starts with "wait, which locale am I on?" It also means one <code>hreflang</code> pattern instead of two, and no bare-path canonical ambiguity. The cost is that <code>/dashboard</code> now redirects rather than resolves — which is exactly the honest thing for it to do.</p>
+
+      <h3>Arabic is a real locale, not English in a mirror</h3>
+      <p>Mirroring the layout is the easy half. The half that bites: your fonts are latin-subset only, your currency formatter is pinned to <code>en-US</code>, and <code>generateYAxis</code> builds labels by string-concatenating a <code>$</code>. Step 5 deals with all three.</p>
+
+      <div class="bidi">
+        <div class="bidi-head">What "mirrored" means — same markup, opposite <code>dir</code></div>
+        <div class="bidi-grid">
+          <div class="bidi-cell" dir="ltr">
+            <div class="dirlabel">dir="ltr" · /en</div>
+            <div class="mini"><span class="dot"></span><span>Pending</span><span class="amt">$1,250.00</span></div>
+            <div class="mini"><span class="dot"></span><span>Paid</span><span class="amt">$3,040.00</span></div>
+          </div>
+          <div class="bidi-cell" dir="rtl">
+            <div class="dirlabel">dir="rtl" · /ar</div>
+            <div class="mini"><span class="dot"></span><span class="ar">قيد الانتظار</span><span class="amt">١٬٢٥٠٫٠٠ US$</span></div>
+            <div class="mini"><span class="dot"></span><span class="ar">مدفوع</span><span class="amt">٣٬٠٤٠٫٠٠ US$</span></div>
+          </div>
+        </div>
+      </div>
+      <p>Note what moved in the right-hand panel without any per-element RTL CSS: the dot, the text, and the amount all reversed, because the layout uses <code>gap</code> and <code>margin-inline-start</code> rather than <code>margin-left</code>. That's the whole trick of step 5.</p>
+
+      <h2 id="s1"><span class="step-n">STEP 01</span>Install and configure routing</h2>
+      <div class="files">
+        <span class="file is-new">i18n/routing.ts</span>
+        <span class="file is-new">i18n/navigation.ts</span>
+        <span class="file is-new">i18n/request.ts</span>
+        <span class="file is-new">messages/en.json</span>
+        <span class="file is-new">messages/ar.json</span>
+        <span class="file">next.config.ts</span>
+      </div>
+
+      <div class="code">
+        <div class="code-head"><span class="path">terminal</span></div>
+        <pre><code>pnpm add next-intl</code></pre>
+      </div>
+
+      <p>Routing config is the single source of truth — the proxy, the navigation helpers and the metadata all read from it.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">i18n/routing.ts</span><span class="tag new">new</span></div>
+        <pre><code>import { defineRouting } from "next-intl/routing";
+
+export const routing = defineRouting({
+  locales: ["en", "ar"],
+  defaultLocale: "en",
+  localePrefix: "always",
+});</code></pre>
+      </div>
+
+      <p>These are drop-in replacements for the <code>next/link</code> and <code>next/navigation</code> exports. They keep the current locale on every navigation, and — the part that saves you in step 4 — their <code>usePathname</code> returns the path <em>without</em> the locale prefix.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">i18n/navigation.ts</span><span class="tag new">new</span></div>
+        <pre><code>import { createNavigation } from "next-intl/navigation";
+import { routing } from "./routing";
+
+export const { Link, redirect, usePathname, useRouter, getPathname } =
+  createNavigation(routing);</code></pre>
+      </div>
+
+      <div class="code">
+        <div class="code-head"><span class="path">i18n/request.ts</span><span class="tag new">new</span></div>
+        <pre><code>import { hasLocale } from "next-intl";
+import { getRequestConfig } from "next-intl/server";
+import { routing } from "./routing";
+
+export default getRequestConfig(async ({ requestLocale }) => {
+  const requested = await requestLocale;
+  const locale = hasLocale(routing.locales, requested)
+    ? requested
+    : routing.defaultLocale;
+
+  return {
+    locale,
+    messages: (await import(`../messages/${locale}.json`)).default,
+  };
+});</code></pre>
+      </div>
+
+      <p>Start the message files small. You are not translating the whole app in step 1 — you're proving the pipeline works.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">messages/en.json</span><span class="tag new">new</span></div>
+        <pre><code>{
+  "Nav": { "home": "Home", "invoices": "Invoices", "customers": "Customers" },
+  "Login": { "title": "Please log in to continue.", "submit": "Log in" }
+}</code></pre>
+      </div>
+
+      <div class="code">
+        <div class="code-head"><span class="path">messages/ar.json</span><span class="tag new">new</span></div>
+        <pre><code>{
+  "Nav": { "home": "الرئيسية", "invoices": "الفواتير", "customers": "العملاء" },
+  "Login": { "title": "يرجى تسجيل الدخول للمتابعة.", "submit": "تسجيل الدخول" }
+}</code></pre>
+      </div>
+
+      <p>The plugin wires <code>i18n/request.ts</code> into the build. It looks for that exact path by default, which is why the folder is named <code>i18n</code>.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">next.config.ts</span><span class="tag edit">edit</span></div>
+        <pre><code>import type { NextConfig } from "next";
+<span class="add">import createNextIntlPlugin from "next-intl/plugin";</span>
+
+const nextConfig: NextConfig = {};
+
+<span class="del">export default nextConfig;</span>
+<span class="add">export default createNextIntlPlugin()(nextConfig);</span></code></pre>
+      </div>
+
+      <div class="check">
+        <span class="lbl">Checkpoint</span>
+        <p><code>pnpm build</code> still passes. Nothing routes differently yet — you've added config, not behaviour.</p>
+      </div>
+
+      <h2 id="s2"><span class="step-n">STEP 02</span>Move every page under <code>[locale]</code></h2>
+      <div class="files">
+        <span class="file">app/layout.tsx</span>
+        <span class="file">app/page.tsx</span>
+        <span class="file">app/login/</span>
+        <span class="file">app/dashboard/</span>
+        <span class="file">app/query/route.ts</span>
+        <span class="file">app/seed/route.ts</span>
+      </div>
+
+      <p>This is the destructive step, and the reason this chapter goes before Cache Components and Testing. Use <code>git mv</code> so history follows the files.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">terminal</span></div>
+        <pre><code>mkdir -p app/[locale]
+git mv app/page.tsx      app/[locale]/page.tsx
+git mv app/login         app/[locale]/login
+git mv app/dashboard     app/[locale]/dashboard
+git mv app/layout.tsx    app/[locale]/layout.tsx
+
+<span class="c"># stays put — see below</span>
+<span class="c"># app/query/route.ts</span>
+<span class="c"># app/seed/route.ts</span>
+<span class="c"># app/ui/  app/lib/</span></code></pre>
+      </div>
+
+      <div class="note warn">
+        <span class="lbl">Don't localise the route handlers</span>
+        <p><code>app/query/route.ts</code> and <code>app/seed/route.ts</code> are machine endpoints, not pages. There is no <code>/ar</code> version of a seed script. Leave them at the root — they need no layout, so they're unaffected by the move. Same for <code>app/ui/</code> and <code>app/lib/</code>, which aren't routes at all.</p>
+      </div>
+
+      <p>Now the layout carries the locale. This is where <code>lang</code> and <code>dir</code> get set — the two attributes the entire RTL story hangs off.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/[locale]/layout.tsx</span><span class="tag edit">edit</span></div>
+        <pre><code>import "@/app/ui/global.css";
+import { notFound } from "next/navigation";
+import { hasLocale, NextIntlClientProvider } from "next-intl";
+import { setRequestLocale } from "next-intl/server";
+import { routing } from "@/i18n/routing";
+import { bodyFont } from "@/app/ui/fonts";
+
+export function generateStaticParams() {
+  return routing.locales.map((locale) => ({ locale }));
+}
+
+export default async function LocaleLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise&lt;{ locale: string }&gt;;
+}) {
+  const { locale } = await params;
+  if (!hasLocale(routing.locales, locale)) notFound();
+
+  <span class="c">// opts this subtree back into static rendering</span>
+  setRequestLocale(locale);
+
+  const dir = locale === "ar" ? "rtl" : "ltr";
+
+  return (
+    &lt;html lang={locale} dir={dir}&gt;
+      &lt;body className={`${bodyFont(locale).className} antialiased`}&gt;
+        &lt;NextIntlClientProvider&gt;{children}&lt;/NextIntlClientProvider&gt;
+      &lt;/body&gt;
+    &lt;/html&gt;
+  );
+}</code></pre>
+      </div>
+
+      <div class="note">
+        <span class="lbl">Two things to check here</span>
+        <p>First, <code>metadataBase</code> moves to step 6 along with the rest of the metadata — don't leave the old static <code>export const metadata</code> in this file. Second, with no root <code>app/layout.tsx</code>, a request that matches no locale has no layout to render its 404 in. Confirm how your Next 16 build handles that — <code>app/global-not-found.tsx</code> is the current answer — before you decide you're done with this step.</p>
+      </div>
+
+      <div class="check">
+        <span class="lbl">Checkpoint</span>
+        <p><code>pnpm build</code> lists routes as <code>/[locale]</code>, <code>/[locale]/dashboard</code>, … and <code>/query</code> and <code>/seed</code> unprefixed. Nothing works in the browser yet — the proxy hasn't been told about locales.</p>
+      </div>
+
+      <h2 id="s3"><span class="step-n">STEP 03</span>Compose the proxy: locale + auth</h2>
+      <div class="files">
+        <span class="file">proxy.ts</span>
+        <span class="file">auth.config.ts</span>
+      </div>
+
+      <p>Right now <code>proxy.ts</code> is one line: <code>NextAuth(authConfig).auth</code>. Two systems now want that slot. Auth runs outside, locale routing runs inside — so an unauthenticated request gets redirected to login <em>with</em> its locale intact.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">proxy.ts</span><span class="tag edit">edit</span></div>
+        <pre><code>import NextAuth from "next-auth";
+import createMiddleware from "next-intl/middleware";
+
+import { routing } from "./i18n/routing";
+import { authConfig } from "./auth.config";
+
+const handleLocale = createMiddleware(routing);
+const { auth } = NextAuth(authConfig);
+
+export default auth((req) =&gt; handleLocale(req));
+
+export const config = {
+  matcher: ["/((?!api|_next/static|_next/image|query|seed|.*\\..*).*)"],
+};</code></pre>
+      </div>
+
+      <div class="note warn">
+        <span class="lbl">The matcher changed twice</span>
+        <p><code>query</code> and <code>seed</code> are now excluded — they're unprefixed route handlers and must not be locale-redirected. And <code>.*\\.png$</code> widened to <code>.*\\..*</code> so every static asset is skipped, not just PNGs.</p>
+      </div>
+
+      <p>Now <code>authorized()</code> is comparing against paths that no longer exist. <code>/ar/dashboard</code> does not start with <code>/dashboard</code>, so <strong>every Arabic dashboard route is currently unprotected</strong>. Strip the locale before you test.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">auth.config.ts</span><span class="tag edit">edit</span></div>
+        <pre><code>import type { NextAuthConfig } from "next-auth";
+import { routing } from "./i18n/routing";
+
+<span class="c">// "/ar/dashboard/invoices" -> "/dashboard/invoices"</span>
+function stripLocale(pathname: string) {
+  const segments = pathname.split("/");
+  const maybeLocale = segments[1] as (typeof routing.locales)[number];
+  if (routing.locales.includes(maybeLocale)) {
+    return "/" + segments.slice(2).join("/");
+  }
+  return pathname;
+}
+
+function localeOf(pathname: string) {
+  const maybeLocale = pathname.split("/")[1] as (typeof routing.locales)[number];
+  return routing.locales.includes(maybeLocale)
+    ? maybeLocale
+    : routing.defaultLocale;
+}
+
+export const authConfig = {
+  pages: {
+    signIn: "/login", <span class="c">// next-intl re-prefixes this</span>
+  },
+  callbacks: {
+    authorized({ auth, request: { nextUrl } }) {
+      const isLoggedIn = !!auth?.user;
+      const locale = localeOf(nextUrl.pathname);
+      const path = stripLocale(nextUrl.pathname);
+      const isOnDashboard = path.startsWith("/dashboard");
+
+      if (isOnDashboard) return isLoggedIn;
+      if (isLoggedIn) {
+        return Response.redirect(new URL(`/${locale}/dashboard`, nextUrl));
+      }
+      return true;
+    },
+  },
+  providers: [],
+} satisfies NextAuthConfig;</code></pre>
+      </div>
+
+      <div class="note warn">
+        <span class="lbl">Verify the sign-in redirect yourself</span>
+        <p><code>pages.signIn</code> is a bare <code>/login</code> and next-auth doesn't know about locales. Whether the locale survives the redirect depends on whether next-auth's redirect lands before or after next-intl's rewrite. Test both <code>/ar/dashboard</code> and <code>/en/dashboard</code> logged out. If an Arabic user gets dropped on the English login page, handle the prefixing here rather than fighting it later.</p>
+      </div>
+
+      <div class="check">
+        <span class="lbl">Checkpoint</span>
+        <p>Logged out, <code>/ar/dashboard</code> redirects to an Arabic login. Logged in, <code>/ar/login</code> bounces to <code>/ar/dashboard</code>, not <code>/en/dashboard</code>. Bare <code>/dashboard</code> redirects to <code>/en/dashboard</code>. <code>/seed</code> still responds.</p>
+      </div>
+
+      <h2 id="s4"><span class="step-n">STEP 04</span>Make every navigation locale-aware</h2>
+      <div class="files">
+        <span class="file">app/ui/dashboard/nav-links.tsx</span>
+        <span class="file">app/ui/dashboard/sidenav.tsx</span>
+        <span class="file">app/ui/invoices/buttons.tsx</span>
+        <span class="file">app/ui/invoices/breadcrumbs.tsx</span>
+        <span class="file">app/ui/invoices/create-form.tsx</span>
+        <span class="file">app/ui/invoices/edit-form.tsx</span>
+        <span class="file">app/ui/invoices/pagination.tsx</span>
+        <span class="file">app/[locale]/page.tsx</span>
+        <span class="file">app/lib/actions.ts</span>
+      </div>
+
+      <p>Mechanically this is one import swap repeated across the tree.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">every file that links internally</span><span class="tag edit">edit</span></div>
+        <pre><code><span class="del">- import Link from "next/link";</span>
+<span class="add">+ import { Link } from "@/i18n/navigation";</span></code></pre>
+      </div>
+
+      <p>Keep <code>next/link</code> in <code>app/[locale]/page.tsx</code> for the external <code>nextjs.org/learn</code> link — that one has no locale to carry.</p>
+
+      <h3>The active-link check</h3>
+      <p><code>nav-links.tsx</code> compares <code>pathname === link.href</code>. Under a locale prefix, <code>usePathname()</code> from <code>next/navigation</code> returns <code>/en/dashboard</code> and the comparison never matches, so the active state silently dies. next-intl's <code>usePathname</code> strips the prefix, which makes the existing comparison correct again — <em>one import change, no logic change</em>.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/ui/dashboard/nav-links.tsx</span><span class="tag edit">edit</span></div>
+        <pre><code>"use client";
+
+<span class="del">- import Link from "next/link";</span>
+<span class="del">- import { usePathname } from "next/navigation";</span>
+<span class="add">+ import { Link, usePathname } from "@/i18n/navigation";</span>
+<span class="add">+ import { useTranslations } from "next-intl";</span>
+
+<span class="c">// href stays locale-free; the labels come from messages now</span>
+const links = [
+  { key: "home", href: "/dashboard", icon: HomeIcon },
+  { key: "invoices", href: "/dashboard/invoices", icon: DocumentDuplicateIcon },
+  { key: "customers", href: "/dashboard/customers", icon: UserGroupIcon },
+];
+
+export default function NavLinks() {
+  const pathname = usePathname(); <span class="c">// "/dashboard", not "/en/dashboard"</span>
+  const t = useTranslations("Nav");
+  <span class="c">// ... link.name becomes t(link.key)</span>
+}</code></pre>
+      </div>
+
+      <div class="note ok">
+        <span class="lbl">Already fine</span>
+        <p><code>pagination.tsx</code> builds hrefs from <code>usePathname()</code> + <code>URLSearchParams</code>. Swap its import for consistency, but the logic needs no change — it was always deriving the path rather than hardcoding it.</p>
+      </div>
+
+      <h3>Server actions</h3>
+      <p><code>actions.ts</code> has two <code>redirect("/dashboard/invoices")</code> calls and three <code>revalidatePath</code> calls. The redirects need the locale-aware version; the revalidations need to cover both locales, since <code>/en/dashboard/invoices</code> and <code>/ar/dashboard/invoices</code> are separate cache entries.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/lib/actions.ts</span><span class="tag edit">edit</span></div>
+        <pre><code><span class="del">- import { redirect } from "next/navigation";</span>
+<span class="add">+ import { redirect } from "@/i18n/navigation";</span>
+<span class="add">+ import { getLocale } from "next-intl/server";</span>
+
+<span class="c">// inside createInvoice / updateInvoice:</span>
+<span class="del">- revalidatePath("/dashboard/invoices");</span>
+<span class="del">- redirect("/dashboard/invoices");</span>
+<span class="add">+ revalidatePath("/[locale]/dashboard/invoices", "page");</span>
+<span class="add">+ redirect({ href: "/dashboard/invoices", locale: await getLocale() });</span></code></pre>
+      </div>
+
+      <div class="note warn">
+        <span class="lbl">Confirm the revalidate shape</span>
+        <p>Passing a dynamic route pattern plus <code>"page"</code> is how you invalidate every locale in one call, but it's the kind of API that shifts between versions. If it doesn't take, fall back to an explicit loop over <code>routing.locales</code> — less elegant, obviously correct.</p>
+      </div>
+
+      <p>Also update <code>sidenav.tsx</code>: <code>signOut({ redirectTo: "/" })</code> drops the user into the default locale. Read the current locale and send them to <code>/${locale}</code>.</p>
+
+      <div class="check">
+        <span class="lbl">Checkpoint</span>
+        <p>From <code>/ar/dashboard</code>, every sidebar link, breadcrumb, pagination link, create/edit/cancel button and sign-out keeps you in <code>/ar</code>. The active nav highlight works again. Creating an invoice returns you to the Arabic invoices list.</p>
+      </div>
+
+      <h2 id="s5"><span class="step-n">STEP 05</span>Direction, type, and numbers</h2>
+      <div class="files">
+        <span class="file">app/ui/fonts.ts</span>
+        <span class="file">app/lib/utils.ts</span>
+        <span class="file">17 files under app/ui/</span>
+      </div>
+
+      <p>The <code>dir</code> attribute from step 2 is already doing work. What's left is the CSS that ignores it.</p>
+
+      <h3>Physical → logical utilities</h3>
+      <p>Your app has roughly <strong>55 direction-bound utilities across 17 files</strong>. Every one of them is a place the Arabic layout breaks. Find them with:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">terminal</span></div>
+        <pre><code>grep -rnE "(pl-|pr-|ml-|mr-|left-|right-|text-left|text-right|rounded-l-|rounded-r-|border-l-|border-r-|space-x-)" \
+  app --include="*.tsx" --include="*.css"</code></pre>
+      </div>
+
+      <div class="note ok">
+        <span class="lbl">Verified</span>
+        <p>Tailwind <strong>3.4.17</strong> — your installed version — ships all of these. Its core plugins emit <code>padding-inline-start</code>, <code>margin-inline-start</code>, <code>inset-inline-start</code> and <code>border-inline-start-width</code>, and it registers the variants as <code>&amp;:where([dir="rtl"], [dir="rtl"] *)</code>. No plugin, no config change.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Physical</th><th>Logical</th><th>Where it bites</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>pl-10</code> <code>pr-3</code></td><td><code>ps-10</code> <code>pe-3</code></td><td>search input, table cells</td></tr>
+            <tr><td><code>ml-2</code> <code>mr-2</code></td><td><code>ms-2</code> <code>me-2</code></td><td>11 + 4 uses; buttons, cards</td></tr>
+            <tr><td><code>left-3</code></td><td><code>start-3</code></td><td>7 uses — the absolutely-positioned search icon</td></tr>
+            <tr><td><code>text-left</code></td><td><code>text-start</code></td><td>table headers</td></tr>
+            <tr><td><code>rounded-l-md</code></td><td><code>rounded-s-md</code></td><td>pagination end caps</td></tr>
+            <tr><td><code>border-l-</code> <code>border-r-</code></td><td><code>border-s-</code> <code>border-e-</code></td><td>table dividers</td></tr>
+            <tr><td><code>space-x-2</code></td><td><code>gap-2</code></td><td>sidenav — see below</td></tr>
+            <tr><td><code>ml-auto</code></td><td><code>ms-auto</code></td><td>pushes to the wrong edge in Arabic</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note warn">
+        <span class="lbl">space-x is the one that fools you</span>
+        <p><code>space-x-*</code> emits physical <code>margin-left</code> and has no logical equivalent. Tailwind's official fix is to add <code>rtl:space-x-reverse</code>, but the better fix is to delete it: the parents are already flex containers, so <code>gap-2</code> does the same job and is direction-agnostic by construction. You have three of these — <code>space-x-2</code>, <code>space-x-1</code>, <code>md:space-x-0</code> — all in <code>sidenav.tsx</code> and <code>breadcrumbs.tsx</code>.</p>
+      </div>
+
+      <p>Icons that point somewhere — the pagination chevrons — are a separate problem. Logical properties move them; nothing flips them. Add <code>rtl:rotate-180</code> to the arrow icons, and to nothing else. A rotated user avatar is the classic over-mirroring bug.</p>
+
+      <h3>Fonts</h3>
+      <p><code>fonts.ts</code> loads Inter and Lusitana with <code>subsets: ["latin"]</code>. Neither contains a single Arabic glyph, so <code>/ar</code> renders in whatever the OS falls back to — different on your machine than on your reviewer's.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/ui/fonts.ts</span><span class="tag edit">edit</span></div>
+        <pre><code>import { Inter, Lusitana, IBM_Plex_Sans_Arabic } from "next/font/google";
+
+export const inter = Inter({ subsets: ["latin"] });
+export const lusitana = Lusitana({ weight: ["400", "700"], subsets: ["latin"] });
+
+export const plexArabic = IBM_Plex_Sans_Arabic({
+  weight: ["400", "500", "600"],
+  subsets: ["arabic"],
+});
+
+<span class="c">// used by app/[locale]/layout.tsx</span>
+export const bodyFont = (locale: string) =&gt;
+  locale === "ar" ? plexArabic : inter;</code></pre>
+      </div>
+
+      <p>Lusitana is a display serif with no Arabic counterpart at all. Wherever it's used for headings, either fall back to the Arabic body face in <code>/ar</code> or pick a deliberate Arabic display face — don't let it silently degrade.</p>
+
+      <h3>Numbers, currency, dates</h3>
+      <p>Three genuine bugs the course left in, all in <code>utils.ts</code>:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/lib/utils.ts</span><span class="tag edit">edit</span></div>
+        <pre><code><span class="c">// 1. pinned to en-US regardless of locale</span>
+<span class="del">- export const formatCurrency = (amount: number) =&gt;</span>
+<span class="del">-   (amount / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });</span>
+<span class="add">+ export const formatCurrency = (amount: number, locale = "en-US") =&gt;</span>
+<span class="add">+   (amount / 100).toLocaleString(locale, { style: "currency", currency: "USD" });</span>
+
+<span class="c">// 2. formatDateToLocal already takes a locale — start passing one</span>
+
+<span class="c">// 3. generateYAxis string-concatenates a dollar sign</span>
+<span class="del">-   yAxisLabels.push(`$${i / 1000}K`);</span>
+<span class="add">+   <span class="c">// format with Intl.NumberFormat(locale, { notation: "compact", … })</span></span></code></pre>
+      </div>
+
+      <div class="note">
+        <span class="lbl">A real decision, not a formatting detail</span>
+        <p>Arabic has two numeral systems. <code>ar</code> defaults to Arabic-Indic digits (٠١٢٣), <code>ar-EG</code> too, but many Gulf and Levantine business UIs use Western digits. If you want Western digits in an Arabic UI, that's the <code>ar-u-nu-latn</code> locale tag — not a hack, an actual Unicode extension. Pick one deliberately and write down why; this is exactly the question your day job will ask you.</p>
+      </div>
+
+      <div class="check">
+        <span class="lbl">Checkpoint</span>
+        <p>Load <code>/ar/dashboard/invoices</code> and compare against <code>/en</code> side by side. The sidebar sits right, the search icon sits inside the input on the correct edge, pagination chevrons point outward correctly, table columns are ordered right-to-left, and no text renders in a fallback font. Then re-check <code>/en</code> — logical properties should have changed nothing there.</p>
+      </div>
+
+      <h2 id="s6"><span class="step-n">STEP 06</span>Metadata, hreflang, and the switcher</h2>
+      <div class="files">
+        <span class="file">app/[locale]/layout.tsx</span>
+        <span class="file is-new">app/ui/locale-switcher.tsx</span>
+      </div>
+
+      <p>The old root layout exported a static <code>metadata</code> object with a title template. It now needs to vary by locale, and to declare its alternates.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/[locale]/layout.tsx</span><span class="tag edit">edit</span></div>
+        <pre><code>export async function generateMetadata({
+  params,
+}: {
+  params: Promise&lt;{ locale: string }&gt;;
+}): Promise&lt;Metadata&gt; {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "Meta" });
+
+  return {
+    title: { template: `%s | ${t("title")}`, default: t("title") },
+    description: t("description"),
+    metadataBase: new URL("https://nextjs-learn-dashboard-steel.vercel.app"),
+    alternates: {
+      canonical: `/${locale}`,
+      languages: { en: "/en", ar: "/ar", "x-default": "/en" },
+    },
+  };
+}</code></pre>
+      </div>
+
+      <p>The switcher is a client component. The important part is that it preserves the current path and search params — a language toggle that dumps you on the homepage is a bug people ship constantly.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/ui/locale-switcher.tsx</span><span class="tag new">new</span></div>
+        <pre><code>"use client";
+
+import { useLocale } from "next-intl";
+import { useParams, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "@/i18n/navigation";
+import { routing } from "@/i18n/routing";
+
+export default function LocaleSwitcher() {
+  const locale = useLocale();
+  const pathname = usePathname(); <span class="c">// locale-free</span>
+  const params = useParams();
+  const search = useSearchParams();
+
+  <span class="c">// router.replace({ pathname, params, query }, { locale: next })</span>
+  <span class="c">// keeps [id] segments and ?query=&amp;page= intact</span>
+}</code></pre>
+      </div>
+
+      <p>Put it in the sidenav next to Sign Out, and on the login page — someone who can't read the login form can't get far enough to find a switcher behind it.</p>
+
+      <div class="check">
+        <span class="lbl">Checkpoint</span>
+        <p>On <code>/en/dashboard/invoices?query=lee&amp;page=2</code>, switching to Arabic lands on <code>/ar/dashboard/invoices?query=lee&amp;page=2</code> — same filter, same page. View source and confirm the <code>alternate</code> link tags for <code>en</code>, <code>ar</code> and <code>x-default</code>.</p>
+      </div>
+
+      <h2 id="commit">Commit</h2>
+      <p>One commit for the chapter, per your rule:</p>
+
+      <div class="commit">
+        <pre>feat(i18n): add english and arabic locale routing with rtl support
+
+Move all pages under app/[locale] and add next-intl routing with an
+always-on locale prefix. Compose locale detection with the existing
+next-auth check in proxy.ts, and strip the prefix before the dashboard
+path check so Arabic routes stay protected.
+
+Replace physical direction utilities with logical properties across
+the UI, load an Arabic subset font, and pass the active locale to the
+currency and date formatters. Emit hreflang alternates and add a
+locale switcher that preserves path and search params.</pre>
+      </div>
+
+      <div class="note">
+        <span class="lbl">If you'd rather split it</span>
+        <p>Step 2 alone is a 20-file rename. Landing it as its own <code>refactor(routes): move pages under a [locale] segment</code> makes the second commit's diff readable instead of drowning in renames. Your call — the rule says one commit per feature, and this is arguably one feature delivered in two moves.</p>
+      </div>
+
+      <h2 id="honest">What this chapter isn't</h2>
+
+      <div class="verdict">
+        <h3>The hreflang work is a rehearsal</h3>
+        <p>Step 6 emits correct alternates and a correct canonical. No crawler will ever see them. Everything meaningful in this app sits behind <code>authorized()</code>, so the entire i18n SEO surface — hreflang, localised metadata, per-locale canonicals — is unreachable to Googlebot. You are learning the mechanism on a page nobody will index.</p>
+        <p>That's a fine reason to do it, as long as it stays labelled. It does <strong>not</strong> move your Phase 2 deliverable, and <code>/ar</code> routing on a login-walled dashboard is not a line on your CV. The value here is that when you build the public project that <em>does</em> carry the LCP number, bilingual routing will be a solved problem you've already debugged once — including the two parts that always break, which are proxy composition and the auth path check.</p>
+        <p>The part that pays immediately is different and worth naming: your day job is an Arabic Next.js site. Steps 3 and 5 are the two places production bilingual apps actually break, and you'll have hit both here first, with nothing at stake.</p>
+      </div>
+
+      <h3>Next chapter</h3>
+      <p>Cache Components. It goes after this one because cache boundaries drawn on the old route tree would have to be redrawn on the new one — and because measuring what caching bought you is the chapter after that.</p>
+
+    </div>
+  </main>
+</div>
+</body>
+</html>

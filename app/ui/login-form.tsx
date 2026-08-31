@@ -15,9 +15,6 @@ import { ArrowRightIcon } from "@heroicons/react/20/solid";
 
 import { Button } from "./button";
 
-// Email: user@nextmail.com
-// Password: 123456
-
 export default function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";

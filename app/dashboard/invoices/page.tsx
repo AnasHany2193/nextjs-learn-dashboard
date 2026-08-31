@@ -7,7 +7,7 @@ import { lusitana } from "@/app/ui/fonts";
 import { InvoicesTableSkeleton } from "@/app/ui/skeletons";
 
 import Table from "@/app/ui/invoices/table";
-import Pagination from "@/app/ui/invoices/pagination";
+import Pagination from "@/app/ui/pagination";
 import { CreateInvoice } from "@/app/ui/invoices/buttons";
 import { Metadata } from "next";
 

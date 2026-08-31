@@ -1,6 +1,7 @@
+import { Suspense } from "react";
+
 import AcmeLogo from "@/app/ui/acme-logo";
 import LoginForm from "@/app/ui/login-form";
-import { Suspense } from "react";
 
 export default function LoginPage() {
   return (
@@ -14,6 +15,11 @@ export default function LoginPage() {
         <Suspense>
           <LoginForm />
         </Suspense>
+
+        <div className="rounded-md bg-blue-50 p-4 text-sm text-blue-900">
+          <p className="font-medium">Demo account</p>
+          <p className="mt-1">user@nextmail.com &middot; 123456</p>
+        </div>
       </div>
     </main>
   );

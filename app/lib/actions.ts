@@ -32,7 +32,7 @@ export async function authenticate(
   }
 }
 
-const FormSchema = z.object({
+const InvoiceFormSchema = z.object({
   id: z.string(),
   customerId: z.string({ invalid_type_error: "Please select a customer" }),
   amount: z.coerce
@@ -44,10 +44,10 @@ const FormSchema = z.object({
   date: z.string(),
 });
 
-const CreateInvoice = FormSchema.omit({ id: true, date: true });
-const UpdateInvoice = FormSchema.omit({ id: true, date: true });
+const CreateInvoice = InvoiceFormSchema.omit({ id: true, date: true });
+const UpdateInvoice = InvoiceFormSchema.omit({ id: true, date: true });
 
-export type State = {
+export type InvoiceState = {
   errors?: {
     customerId?: string[];
     amount?: string[];
@@ -56,7 +56,10 @@ export type State = {
   message?: string | null;
 };
 
-export async function createInvoice(prevState: State, formData: FormData) {
+export async function createInvoice(
+  prevState: InvoiceState,
+  formData: FormData,
+) {
   // Validate form fields using Zod
   const validatedFields = CreateInvoice.safeParse({
     customerId: formData.get("customerId"),
@@ -93,11 +96,9 @@ export async function createInvoice(prevState: State, formData: FormData) {
 
 export async function updateInvoice(
   id: string,
-  prevState: State,
+  prevState: InvoiceState,
   formData: FormData,
 ) {
-  console.log("HERE");
-
   const validatedFields = UpdateInvoice.safeParse({
     customerId: formData.get("customerId"),
     amount: formData.get("amount"),
@@ -130,7 +131,7 @@ export async function updateInvoice(
   redirect("/dashboard/invoices");
 }
 
-export async function deleteInvoice(id: string): Promise<State> {
+export async function deleteInvoice(id: string): Promise<InvoiceState> {
   try {
     await sql`DELETE FROM invoices WHERE id = ${id}`;
   } catch (error) {
@@ -138,5 +139,131 @@ export async function deleteInvoice(id: string): Promise<State> {
   }
 
   revalidatePath("/dashboard/invoices");
+  return { message: null };
+}
+
+const CustomerFormSchema = z.object({
+  id: z.string(),
+  name: z.string().trim().min(1, { message: "Please enter a name." }),
+  email: z
+    .string()
+    .trim()
+    .email({ message: "Please enter a valid email address." }),
+  imageUrl: z
+    .string()
+    .trim()
+    .refine((value) => value === "" || value.startsWith("/"), {
+      message: "Image URL must be a local path, like /customers/name.png",
+    }),
+});
+
+const CreateCustomer = CustomerFormSchema.omit({ id: true });
+const UpdateCustomer = CustomerFormSchema.omit({ id: true });
+
+export type CustomerState = {
+  errors?: { name?: string[]; email?: string[]; imageUrl?: string[] };
+  message?: string | null;
+};
+
+export async function createCustomer(
+  prevState: CustomerState,
+  formData: FormData,
+) {
+  // Validate form fields using Zod
+  const validatedFields = CreateCustomer.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    imageUrl: formData.get("imageUrl"),
+  });
+
+  // If form validation fails, return errors early. Otherwise, continue.
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: "Missing Fields. Failed to Create Customer.",
+    };
+  }
+
+  // Prepare data for insertion into the database
+  const { name, email, imageUrl } = validatedFields.data;
+
+  // Insert data into the database
+  try {
+    await sql`INSERT INTO customers (name, email, image_url)
+    VALUES (${name}, ${email}, ${imageUrl})`;
+  } catch (error) {
+    // If a database error occurs, return a more specific error.
+    console.error("Database Error:", error);
+    return { message: "Database Error: Failed to Create Customer." };
+  }
+
+  // Revalidate the cache for the customers page and redirect the user.
+  revalidatePath("/dashboard/customers");
+  redirect("/dashboard/customers");
+}
+
+export async function updateCustomer(
+  id: string,
+  prevState: CustomerState,
+  formData: FormData,
+) {
+  const validatedFields = UpdateCustomer.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    imageUrl: formData.get("imageUrl"),
+  });
+
+  // If form validation fails, return errors early. Otherwise, continue.
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: "Missing Fields. Failed to Update Customer.",
+    };
+  }
+
+  // Prepare data for insertion into the database
+  const { name, email, imageUrl } = validatedFields.data;
+
+  try {
+    await sql`
+      UPDATE customers
+      SET name = ${name}, email = ${email}, image_url = ${imageUrl}
+      WHERE id = ${id}
+    `;
+  } catch (error) {
+    // If a database error occurs, return a more specific error.
+    console.error("Database Error:", error);
+    return { message: "Database Error: Failed to Update Customer." };
+  }
+
+  // Revalidate the cache for the customers page and redirect the user.
+  revalidatePath("/dashboard/customers");
+  redirect("/dashboard/customers");
+}
+
+export async function deleteCustomer(id: string): Promise<CustomerState> {
+  try {
+    // invoices.customer_id has no foreign key, so deleting a customer with
+    // invoices would orphan them: they'd vanish from the invoices list
+    // (which inner-joins customers) while still counting toward the
+    // dashboard's total invoices card (which doesn't join at all). Refuse
+    // instead of leaving the two out of sync.
+    const [{ count }] = await sql<{ count: string }[]>`
+      SELECT COUNT(*) FROM invoices WHERE customer_id = ${id}
+    `;
+
+    if (Number(count) > 0) {
+      return {
+        message: `Cannot delete: this customer still has ${count} invoice(s).`,
+      };
+    }
+
+    await sql`DELETE FROM customers WHERE id = ${id}`;
+  } catch (error) {
+    console.error("Database Error:", error);
+    return { message: "Database Error: Failed to Delete Customer." };
+  }
+
+  revalidatePath("/dashboard/customers");
   return { message: null };
 }

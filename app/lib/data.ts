@@ -1,5 +1,6 @@
 import postgres from "postgres";
 import {
+  Customer,
   CustomerField,
   CustomersTableType,
   InvoiceForm,
@@ -87,7 +88,7 @@ export async function fetchCardData() {
   }
 }
 
-const ITEMS_PER_PAGE = 4;
+const ITEMS_PER_PAGE = 6;
 export async function fetchFilteredInvoices(
   query: string,
   currentPage: number,
@@ -236,5 +237,20 @@ export async function fetchCustomersPages(query: string) {
   } catch (error) {
     console.error("Database Error:", error);
     throw new Error("Failed to fetch total number of invoices.");
+  }
+}
+
+export async function fetchCustomerById(id: string) {
+  try {
+    const data = await sql<Customer[]>`
+      SELECT id, name, email, image_url
+      FROM customers
+      WHERE id = ${id}
+    `;
+
+    return data[0];
+  } catch (error) {
+    console.error("Database Error:", error);
+    throw new Error("Failed to fetch customer.");
   }
 }

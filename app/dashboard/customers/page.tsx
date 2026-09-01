@@ -9,6 +9,7 @@ import { CustomersTableSkeleton } from "../../ui/skeletons";
 
 import Pagination from "../../ui/pagination";
 import CustomersTable from "@/app/ui/customers/table";
+import { CreateCustomer } from "../../ui/customers/buttons";
 
 export const metadata: Metadata = {
   title: "Customers",
@@ -30,7 +31,10 @@ export default async function Page(props: {
         Customers
       </h1>
 
-      <Search placeholder="Search customers..." />
+      <div className="mt-4 flex items-center justify-between gap-2 md:mt-8">
+        <Search placeholder="Search invoices..." />
+        <CreateCustomer />
+      </div>
 
       {/* key remounts the boundary so the skeleton shows on every new query */}
       <Suspense key={query + currentPage} fallback={<CustomersTableSkeleton />}>

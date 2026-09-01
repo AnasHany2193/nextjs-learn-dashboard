@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
-import { createInvoice, State } from "../../lib/actions";
+import { createInvoice, InvoiceState } from "../../lib/actions";
 import { CustomerField } from "@/app/lib/definitions";
 
 import {
@@ -16,7 +16,7 @@ import {
 import { Button } from "@/app/ui/button";
 
 export default function Form({ customers }: { customers: CustomerField[] }) {
-  const initialState: State = { message: null, errors: {} };
+  const initialState: InvoiceState = { message: null, errors: {} };
   const [state, formAction] = useActionState(createInvoice, initialState);
 
   return (

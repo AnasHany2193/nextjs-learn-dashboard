@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Finishing the Next.js Learn dashboard: connecting the customers page the course leaves as a stub, streaming its search, and building the create, edit and delete that customers never got.">
+<meta name="description" content="Finishing the Next.js Learn dashboard: connecting the customers page the course leaves as a stub, building create, edit and delete, and finding the missing foreign key that lets one delete corrupt the dashboard.">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Finish the project">
 <meta property="og:description" content="Connecting the customers page the course left as a stub, then giving customers the create, edit and delete that invoices already had.">
@@ -475,10 +475,13 @@
       <li><a href="#s3"><span class="n">03</span><span>Show the demo login</span></a></li>
       <li><a href="#s4"><span class="n">04</span><span>Paginate — and the count bug</span></a></li>
       <li class="sep">CRUD</li>
-      <li><a href="#s5"><span class="n">05</span><span>Create a customer</span></a></li>
-      <li><a href="#s6"><span class="n">06</span><span>Edit a customer</span></a></li>
-      <li><a href="#s7"><span class="n">07</span><span>Delete — and the missing key</span></a></li>
+      <li><a href="#s5"><span class="n">05</span><span>Two components first</span></a></li>
+      <li><a href="#s6"><span class="n">06</span><span>Create a customer</span></a></li>
+      <li><a href="#s7"><span class="n">07</span><span>Edit a customer</span></a></li>
+      <li><a href="#s8"><span class="n">08</span><span>Delete — and the missing key</span></a></li>
       <li class="sep">After</li>
+      <li><a href="#shared"><span class="n">—</span><span>Shared refactors</span></a></li>
+      <li><a href="#gaps"><span class="n">—</span><span>Known gaps</span></a></li>
       <li><a href="#commit"><span class="n">—</span><span>Commit</span></a></li>
       <li><a href="#next"><span class="n">—</span><span>Next chapter</span></a></li>
     </ol>
@@ -489,7 +492,7 @@
 
       <p class="eyebrow">Self-directed · Chapter 16</p>
       <h1>Finish the project</h1>
-      <p class="standfirst">The course ends with a stub page, a fully-written component nobody imports, and a login screen whose password is hidden in a code comment. Close all three — then give customers the create, edit and delete that invoices already had.</p>
+      <p class="standfirst">The course ends with a stub page, a fully-written component nobody imports, and a login screen whose password is hidden in a code comment. Close all three — then give customers the create, edit and delete that invoices already had, and find the schema gap that makes deleting dangerous.</p>
 
       <div class="learn">
         <h4>In this chapter</h4>
@@ -498,9 +501,10 @@
           <li>Move its data fetch into the table so search <strong>streams</strong> instead of blocking</li>
           <li>Learn why a <code>&lt;Suspense&gt;</code> boundary in the wrong place breaks a search input</li>
           <li>Surface the demo credentials on the login page, where a visitor can actually see them</li>
-          <li>Paginate the list — and fix the count query that silently ignores the search term</li>
+          <li>Paginate the list — and find the count query that ignores the search term</li>
+          <li>Build a <strong>picture picker</strong>, and learn why <code>&lt;select&gt;</code> can't do it</li>
           <li>Build <strong>create, edit and delete</strong> against the invoices pattern already in the repo</li>
-          <li>Find the missing foreign key that lets a delete quietly corrupt your dashboard</li>
+          <li>Find the missing foreign key that lets one delete quietly corrupt your dashboard</li>
         </ul>
       </div>
 
@@ -523,7 +527,7 @@
         </table>
       </div>
 
-      <p>Steps 1–4 connect what's already written. Steps 5–7 are the half the course never built at all: customers are read-only in the finished project, while invoices got a full create/edit/delete. This chapter closes that gap.</p>
+      <p>Steps 1–4 connect what's already written. Steps 5–8 are the half the course never built at all: customers are read-only in the finished project, while invoices got a full create/edit/delete. This chapter closes that gap.</p>
 
       <h2 id="s1"><span class="step-n">STEP 01</span>Wire the customers page</h2>
       <div class="files">
@@ -557,16 +561,6 @@ export default async function Page(props: {
       <div class="note">
         <span class="lbl">The title is free</span>
         <p><code>app/dashboard/layout.tsx</code> already declares <code>template: "%s | Acme Dashboard"</code>, so <code>title: "Customers"</code> renders as <em>Customers | Acme Dashboard</em>. You built that machinery in the SEO commit — this is the first page to reuse it.</p>
-      </div>
-
-      <p>While you're in the table, delete the dead import. TypeScript won't complain, but your linter should.</p>
-
-      <div class="code">
-        <div class="code-head"><span class="path">app/ui/customers/table.tsx</span><span class="tag edit">edit</span></div>
-        <pre><code>import {
-<span class="del">-   CustomersTableType,</span>
-  FormattedCustomersTable,
-} from "@/app/lib/definitions";</code></pre>
       </div>
 
       <div class="check">
@@ -621,23 +615,12 @@ export default async function Page(props: {
 
       <p>The table now owns its fetch. Its signature changes from a prop to a query, and the three things you hoisted come out of its JSX.</p>
 
-      <div class="code">
-        <div class="code-head"><span class="path">app/ui/customers/table.tsx</span><span class="tag edit">edit</span></div>
-        <pre><code><span class="del">- import { lusitana } from "@/app/ui/fonts";</span>
-<span class="del">- import Search from "@/app/ui/search";</span>
-<span class="add">+ import { fetchFilteredCustomers } from "../../lib/data";</span>
+      <p>Last piece: the fallback. Model it on <code>InvoicesTableSkeleton</code>, but the customers table has five data columns — Name, Email, Total Invoices, Total Pending, Total Paid.</p>
 
-<span class="del">- export default async function CustomersTable({ customers }: {…}) {</span>
-<span class="add">+ export default async function CustomersTable({ query }: { query: string }) {</span>
-<span class="add">+   const customers = await fetchFilteredCustomers(query);</span>
-
-  return (
-<span class="del">-   &lt;div className="w-full"&gt;</span>
-<span class="add">+   &lt;div className="mt-6 flow-root"&gt;</span>
-      …rows unchanged…</code></pre>
+      <div class="note warn">
+        <span class="lbl">Count the cells twice</span>
+        <p>A skeleton is a table too. If its <code>&lt;thead&gt;</code> declares six columns and its row component only renders five <code>&lt;td&gt;</code>, the loading state is visibly one column short of the real thing — and nothing in TypeScript or the linter will tell you. Come back and re-count after step 08 adds the actions column.</p>
       </div>
-
-      <p>Last piece: the fallback. Model it on <code>InvoicesTableSkeleton</code>, but the customers table has <strong>five</strong> columns, not six — Name, Email, Total Invoices, Total Pending, Total Paid.</p>
 
       <div class="check">
         <span class="lbl">Checkpoint</span>
@@ -666,7 +649,7 @@ export default async function Page(props: {
 
       <div class="note warn">
         <span class="lbl">Say why this is fine, because usually it isn't</span>
-        <p>Publishing a working password on a login screen is normally indefensible. It's fine here for reasons worth being able to state: the account is seeded from <code>placeholder-data.ts</code>, the database holds invented invoices for six invented customers, and the credentials are <em>already</em> public in this repo. Surfacing them changes nothing about the risk and makes the demo usable.</p>
+        <p>Publishing a working password on a login screen is normally indefensible. It's fine here for reasons worth being able to state: the account is seeded from <code>placeholder-data.ts</code>, the database holds invented invoices for invented customers, and the credentials are <em>already</em> public in this repo. Surfacing them changes nothing about the risk and makes the demo usable.</p>
         <p>None of that survives contact with a real app. The moment there's a real user in that table, this block comes out.</p>
       </div>
 
@@ -682,16 +665,22 @@ export default async function Page(props: {
       <div class="code">
         <div class="code-head"><span class="path">observed</span></div>
         <pre><code>customers seeded    6
-ITEMS_PER_PAGE      4   <span class="c">// app/lib/data.ts:90</span>
+ITEMS_PER_PAGE      6   <span class="c">// app/lib/data.ts</span>
                     ─
-pages               2   <span class="c">// worth building</span></code></pre>
+pages               1   <span class="c">// nothing to click</span></code></pre>
       </div>
 
-      <p>Two pages is enough to tell working code from broken, so build it. Give <code>fetchFilteredCustomers</code> a <code>currentPage</code>, add <code>LIMIT</code>/<code>OFFSET</code>, write <code>fetchCustomersPages</code>, and key the boundary on <code>query + currentPage</code> the way the invoices page does.</p>
+      <div class="note">
+        <span class="lbl">Build it anyway — step 06 is about to break the tie</span>
+        <p>Six customers at six per page is exactly one page, so pagination is unverifiable <em>today</em>. It stops being unverifiable the moment you create a seventh customer, which is precisely what step 06 does. Build the pagination now, then come back and confirm it after your first create.</p>
+        <p>The alternative — seed more rows first — works too. What doesn't work is building it, seeing one page, and calling it done.</p>
+      </div>
+
+      <p>Give <code>fetchFilteredCustomers</code> a <code>currentPage</code>, add <code>LIMIT</code>/<code>OFFSET</code>, write <code>fetchCustomersPages</code>, and key the boundary on <code>query + currentPage</code> the way the invoices page does.</p>
 
       <div class="note">
         <span class="lbl">Move Pagination up a level</span>
-        <p><code>Pagination</code> lives in <code>app/ui/invoices/</code> but has nothing invoice-specific in it — it reads <code>usePathname()</code> and rewrites a <code>page</code> search param. Two consumers now, so <code>git mv</code> it to <code>app/ui/pagination.tsx</code>. Same reasoning applies to <code>breadcrumbs.tsx</code> once step 5 gives it a second caller.</p>
+        <p><code>Pagination</code> lives in <code>app/ui/invoices/</code> but has nothing invoice-specific in it — it reads <code>usePathname()</code> and rewrites a <code>page</code> search param. Two consumers now, so <code>git mv</code> it to <code>app/ui/pagination.tsx</code>.</p>
       </div>
 
       <p>Then copy <code>fetchInvoicesPages</code> as the model for the count query — and read what you copied, because this is where it goes wrong:</p>
@@ -708,7 +697,7 @@ pages               2   <span class="c">// worth building</span></code></pre>
 
       <div class="note warn">
         <span class="lbl">Reproduce it</span>
-        <p>Search for <code>lee</code>. The table filters to one row; the pager still offers <strong>two</strong> pages, and page 2 renders empty. The row query filters and the count query doesn't, so they disagree the moment you type.</p>
+        <p>Once you have seven customers, search for a name that matches one of them. The table filters to a single row; the pager still offers <strong>two</strong> pages, and page 2 renders empty. The row query filters and the count query doesn't, so they disagree the moment you type.</p>
         <p>TypeScript already knows: <code>'query' is declared but its value is never read</code>. An unused parameter on a function whose entire job is filtering is the compiler telling you the filter is missing.</p>
       </div>
 
@@ -722,24 +711,15 @@ pages               2   <span class="c">// worth building</span></code></pre>
 `;</code></pre>
       </div>
 
-      <p>While you're there, the copied <code>catch</code> still says <em>"Failed to fetch total number of invoices."</em> Fix the noun. Error messages that lie about which table they came from cost you an afternoon eventually.</p>
+      <p>While you're there, the copied <code>catch</code> still says <em>"Failed to fetch total number of invoices."</em> Fix the noun. Error messages that lie about which table they came from cost you an afternoon eventually. Same goes for the <code>&lt;Search placeholder="Search invoices..." /&gt;</code> that tends to ride along on the customers page.</p>
 
-      <div class="check">
-        <span class="lbl">Checkpoint</span>
-        <p>Empty search shows 2 pages. Searching <code>lee</code> shows 1 page and no dead page-2 link. Both pages render four rows and two rows respectively.</p>
-      </div>
-
-      <h2 id="s5"><span class="step-n">STEP 05</span>Create a customer</h2>
+      <h2 id="s5"><span class="step-n">STEP 05</span>Two components the forms need</h2>
       <div class="files">
-        <span class="file">app/lib/actions.ts</span>
-        <span class="file is-new">app/ui/customers/create-form.tsx</span>
-        <span class="file is-new">app/ui/customers/buttons.tsx</span>
-        <span class="file is-new">app/dashboard/customers/create/page.tsx</span>
+        <span class="file is-new">app/ui/customers/avatar.tsx</span>
+        <span class="file is-new">app/ui/customers/avatar-picker.tsx</span>
       </div>
 
-      <p>Everything here mirrors <code>createInvoice</code>. Same Zod-validate-then-insert shape, same <code>useActionState</code> wiring, same <code>revalidatePath</code> + <code>redirect</code> ending. Read <code>createInvoice</code> first and this step is mostly transcription — with one decision the invoices form never had to make.</p>
-
-      <h3>The schema you're inserting into</h3>
+      <p>Both forms in the next two steps need to deal with a customer's picture, and the schema makes that harder than it looks. Build these first, once, and the create and edit forms become almost identical.</p>
 
       <div class="code">
         <div class="code-head"><span class="path">app/seed/route.ts</span><span class="tag">reference</span></div>
@@ -751,11 +731,180 @@ pages               2   <span class="c">// worth building</span></code></pre>
 );</code></pre>
       </div>
 
+      <p>The seeded customers point at six local files in <code>public/customers/</code>. This app has no file upload. So what does a new customer get?</p>
+
       <div class="note warn">
-        <span class="lbl">image_url is the interesting problem</span>
-        <p>It's <code>NOT NULL</code>, the six seeded customers point at local files in <code>public/customers/</code>, and this app has no file upload. So what does a newly created customer get?</p>
-        <p>Accepting an arbitrary external URL is the tempting answer and the wrong one: <code>next/image</code> refuses any host not listed in <code>images.remotePatterns</code>, and opening that up turns your image optimizer into a fetcher for URLs strangers control. Take the narrow option — accept a <strong>root-relative path or nothing</strong>, and render initials when it's empty.</p>
+        <span class="lbl">Not an arbitrary URL</span>
+        <p>Accepting any URL is the tempting answer and the wrong one: <code>next/image</code> refuses any host not listed in <code>images.remotePatterns</code>, and opening that up turns your image optimizer into a fetcher for URLs strangers control. Take the narrow option — offer <strong>the six pictures that exist</strong>, or none at all.</p>
       </div>
+
+      <h3>CustomerAvatar — the fallback</h3>
+      <p>"Or none at all" means <code>image_url</code> can be an empty string, and <code>&lt;Image src=""&gt;</code> throws at render. One component keeps that decision in a single place instead of scattered across the table's desktop and mobile layouts:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/ui/customers/avatar.tsx</span><span class="tag new">new</span></div>
+        <pre><code>function initialsOf(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) =&gt; part[0].toUpperCase())
+    .join("");
+}
+
+export default function CustomerAvatar({
+  name,
+  imageUrl,
+  size = 28,
+}: {
+  name: string;
+  imageUrl: string;
+  size?: number;
+}) {
+  if (imageUrl) {
+    return (
+      &lt;Image
+        src={imageUrl}
+        className="rounded-full"
+        alt={`${name}'s profile picture`}
+        width={size}
+        height={size}
+      /&gt;
+    );
+  }
+
+  <span class="c">// Customers created without a picture fall back to initials.</span>
+  return (
+    &lt;span
+      aria-hidden="true"
+      style={{ width: size, height: size, fontSize: size * 0.4 }}
+      className="flex shrink-0 items-center justify-center rounded-full
+                 bg-blue-100 font-medium text-blue-700"
+    &gt;
+      {initialsOf(name)}
+    &lt;/span&gt;
+  );
+}</code></pre>
+      </div>
+
+      <p>Then replace both raw <code>&lt;Image&gt;</code> blocks in <code>table.tsx</code> with it. Do this <em>before</em> step 06, not after — the first customer you create without a picture will otherwise crash the list page you just built.</p>
+
+      <div class="note">
+        <span class="lbl">Why width and height are not optional</span>
+        <p><code>next/image</code> requires explicit dimensions (or <code>fill</code>) so it can reserve space and avoid layout shift. Omitting them isn't a warning — it's a runtime error. Passing <code>size</code> through to both the <code>Image</code> and the fallback <code>span</code> keeps the two branches the same size, which is the whole point of a fallback.</p>
+      </div>
+
+      <h3>AvatarPicker — and why it isn't a &lt;select&gt;</h3>
+
+      <div class="note warn">
+        <span class="lbl">A native select cannot show images</span>
+        <p><code>&lt;option&gt;</code> renders as plain text in every browser. Put an <code>&lt;img&gt;</code> inside one and Chrome, Firefox and Safari all strip it — this is specified behaviour, not a bug you can style around. If you want a thumbnail next to each choice, you are building a custom listbox. There is no shortcut.</p>
+      </div>
+
+      <p>The pattern: a trigger button that shows the current choice, a <code>role="listbox"</code> panel of options, and a <strong>hidden input</strong> that carries the value into the form. That hidden input is the important part — it means the server action and the Zod schema never learn that this isn't an ordinary field.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/ui/customers/avatar-picker.tsx</span><span class="tag new">new</span></div>
+        <pre><code>"use client";
+
+<span class="c">// The six pictures the course seeds into public/customers.</span>
+const AVATARS = [
+  "amy-burns.png",
+  "balazs-orban.png",
+  "delba-de-oliveira.png",
+  "evil-rabbit.png",
+  "lee-robinson.png",
+  "michael-novotny.png",
+].map((file) =&gt; ({
+  value: `/customers/${file}`,
+  label: file.replace(".png", "").replace(/-/g, " "),
+}));
+
+export default function AvatarPicker({
+  name,
+  defaultValue = "",
+  error,
+}: {
+  name: string;
+  defaultValue?: string;
+  error?: string[];
+}) {
+  const [value, setValue] = useState(defaultValue);
+  const [open, setOpen] = useState(false);
+  const listboxId = useId();
+  const triggerRef = useRef&lt;HTMLButtonElement&gt;(null);
+
+  const selected = AVATARS.find((a) =&gt; a.value === value);
+
+  function choose(next: string) {
+    setValue(next);
+    setOpen(false);
+    triggerRef.current?.focus();   <span class="c">// return focus, don't strand it</span>
+  }
+
+  return (
+    &lt;div className="relative"&gt;
+      <span class="c">{/* the bridge: the form sees a normal field */}</span>
+      &lt;input type="hidden" name={name} value={value} /&gt;
+
+      &lt;button
+        ref={triggerRef}
+        id={name}              <span class="c">// so the label's htmlFor lands somewhere real</span>
+        type="button"          <span class="c">// or it submits the form</span>
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listboxId}
+        onClick={() =&gt; setOpen((o) =&gt; !o)}
+        onKeyDown={(e) =&gt; { if (e.key === "Escape") setOpen(false); }}
+      &gt;
+        {selected ? &lt;Image src={selected.value} … /&gt; : &lt;span&gt;—&lt;/span&gt;}
+        &lt;span&gt;{selected ? selected.label : "No picture (use initials)"}&lt;/span&gt;
+        &lt;ChevronUpDownIcon /&gt;
+      &lt;/button&gt;
+
+      {open && (
+        &lt;ul id={listboxId} role="listbox" aria-label="Choose a picture"&gt;
+          <span class="c">{/* "no picture" first, then one option per avatar */}</span>
+          &lt;li
+            role="option"
+            aria-selected={value === ""}
+            tabIndex={0}
+            onClick={() =&gt; choose("")}
+            onKeyDown={(e) =&gt; {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                choose("");
+              }
+            }}
+          &gt;…&lt;/li&gt;
+        &lt;/ul&gt;
+      )}
+    &lt;/div&gt;
+  );
+}</code></pre>
+      </div>
+
+      <div class="note">
+        <span class="lbl">Four details that are easy to miss</span>
+        <ul>
+          <li><code>type="button"</code> on the trigger. A bare <code>&lt;button&gt;</code> inside a form defaults to <code>type="submit"</code>, so opening the picker would submit the form.</li>
+          <li><code>id={name}</code> on the trigger, so the field's <code>&lt;label htmlFor="imageUrl"&gt;</code> points at something focusable. A label pointing at a hidden input does nothing.</li>
+          <li><code>triggerRef.current?.focus()</code> after choosing. The panel unmounts on select; without this, keyboard focus falls back to <code>&lt;body&gt;</code> and the user loses their place.</li>
+          <li><code>e.preventDefault()</code> in the <kbd>Space</kbd> handler, or the page scrolls underneath the open panel.</li>
+        </ul>
+      </div>
+
+      <p>Taking <code>defaultValue</code> as a prop is what lets step 07 reuse this unchanged: create passes nothing, edit passes <code>customer.image_url</code>.</p>
+
+      <h2 id="s6"><span class="step-n">STEP 06</span>Create a customer</h2>
+      <div class="files">
+        <span class="file">app/lib/actions.ts</span>
+        <span class="file is-new">app/ui/customers/create-form.tsx</span>
+        <span class="file is-new">app/ui/customers/buttons.tsx</span>
+        <span class="file is-new">app/dashboard/customers/create/page.tsx</span>
+      </div>
+
+      <p>Everything here mirrors <code>createInvoice</code>: Zod-validate, insert, <code>revalidatePath</code>, <code>redirect</code>. Read that function first and this step is mostly transcription.</p>
 
       <div class="code">
         <div class="code-head"><span class="path">app/lib/actions.ts</span><span class="tag edit">edit</span></div>
@@ -775,6 +924,7 @@ pages               2   <span class="c">// worth building</span></code></pre>
 });
 
 const CreateCustomer = CustomerFormSchema.omit({ id: true });
+const UpdateCustomer = CustomerFormSchema.omit({ id: true });
 
 export type CustomerState = {
   errors?: { name?: string[]; email?: string[]; imageUrl?: string[] };
@@ -782,34 +932,41 @@ export type CustomerState = {
 };</code></pre>
       </div>
 
-      <p>The action itself is <code>createInvoice</code> with the nouns swapped — <code>safeParse</code>, return <code>fieldErrors</code> on failure, <code>INSERT</code> inside a <code>try</code>, then <code>revalidatePath("/dashboard/customers")</code> and <code>redirect</code> to the list.</p>
-
-      <p>For the empty-image case, a small component keeps the fallback in one place instead of scattered across the table's two layouts:</p>
+      <p>The <code>refine</code> looks redundant now that the picker only ever emits one of seven known values — and it is, for anyone using the form. Keep it anyway: a server action is a public HTTP endpoint, and the picker is not a security boundary. Anyone can POST to it directly.</p>
 
       <div class="code">
-        <div class="code-head"><span class="path">app/ui/customers/avatar.tsx</span><span class="tag new">new</span></div>
-        <pre><code>export default function CustomerAvatar({ name, imageUrl, size = 28 }) {
-  if (imageUrl) {
-    return &lt;Image src={imageUrl} alt={`${name}'s profile picture`} … /&gt;;
-  }
+        <div class="code-head"><span class="path">app/lib/actions.ts</span><span class="tag edit">edit</span></div>
+        <pre><code>try {
+  await sql`INSERT INTO customers (name, email, image_url)
+  VALUES (${name}, ${email}, ${imageUrl})`;
+} catch (error) {
+  console.error("Database Error:", error);
+  return { message: "Database Error: Failed to Create Customer." };
+}
 
-  <span class="c">// customers created through the form have no picture yet</span>
-  return (
-    &lt;span className="… rounded-full bg-blue-100 text-blue-700"&gt;
-      {initialsOf(name)}
-    &lt;/span&gt;
-  );
-}</code></pre>
+revalidatePath("/dashboard/customers");
+redirect("/dashboard/customers");</code></pre>
       </div>
 
-      <p>Then <code>CreateCustomer</code> in a new <code>app/ui/customers/buttons.tsx</code> (copy <code>CreateInvoice</code>), dropped next to the search box on the list page, and a <code>create/page.tsx</code> that renders <code>&lt;Breadcrumbs&gt;</code> and the form.</p>
+      <div class="note warn">
+        <span class="lbl">Three ways this insert goes wrong</span>
+        <p>Copying from <code>createInvoice</code> and editing by hand invites all three at once: writing to <strong>users</strong> instead of <code>customers</code>, using the JS-side name <strong><code>imageUrl</code></strong> instead of the column <code>image_url</code>, and pasting <code>CREATE TABLE</code> syntax like <code>id UUID DEFAULT uuid_generate_v4() PRIMARY KEY</code> into the <code>VALUES</code> list. That last one fails with <code>syntax error at or near "UUID"</code>, and because the whole insert sits in a <code>try</code>, all you see in the browser is the generic "Database Error" message.</p>
+        <p>That generic message is why the <code>console.error(error)</code> matters. Without it the real Postgres error never reaches you.</p>
+      </div>
+
+      <p>Then the form. Three fields, the third being <code>&lt;AvatarPicker name="imageUrl" error={state.errors?.imageUrl} /&gt;</code>, plus <code>CreateCustomer</code> in a new <code>buttons.tsx</code> dropped next to the search box, and a <code>create/page.tsx</code> rendering breadcrumbs and the form.</p>
+
+      <div class="note">
+        <span class="lbl">Check the labels you copied</span>
+        <p>The invoice form's fields are <code>customer</code>, <code>amount</code> and <code>status</code>. Copy it and you get three labels all reading <code>htmlFor="amount"</code>, pointing at an id that doesn't exist on this page — so clicking "Name" or "Email" focuses nothing. The accessibility chapter you already did is the one that teaches why that matters.</p>
+      </div>
 
       <div class="check">
         <span class="lbl">Checkpoint</span>
-        <p>Submitting empty shows three field errors, not a crash. A valid customer with no picture appears in the list as coloured initials. A picture path of <code>/customers/amy-burns.png</code> renders the real photo. Typing <code>https://example.com/a.png</code> is rejected by the form, not by a broken image.</p>
+        <p>Submitting empty shows field errors, not a crash. A customer created with a picked avatar shows that photo in the list; one created with "no picture" shows coloured initials. And now that you have a seventh customer, go back and confirm the step 04 pagination actually turns over.</p>
       </div>
 
-      <h2 id="s6"><span class="step-n">STEP 06</span>Edit a customer</h2>
+      <h2 id="s7"><span class="step-n">STEP 07</span>Edit a customer</h2>
       <div class="files">
         <span class="file">app/lib/data.ts</span>
         <span class="file">app/lib/actions.ts</span>
@@ -817,7 +974,7 @@ export type CustomerState = {
         <span class="file is-new">app/dashboard/customers/[id]/edit/page.tsx</span>
       </div>
 
-      <p>The fetch is the one piece of genuinely new data code, and it needs no new type — <code>Customer</code> in <code>definitions.ts</code> is already <code>{ id, name, email, image_url }</code>.</p>
+      <p>The fetch needs no new type — <code>Customer</code> in <code>definitions.ts</code> is already <code>{ id, name, email, image_url }</code>.</p>
 
       <div class="code">
         <div class="code-head"><span class="path">app/lib/data.ts</span><span class="tag edit">edit</span></div>
@@ -837,25 +994,33 @@ export type CustomerState = {
 }</code></pre>
       </div>
 
-      <p>The form is the create form with three <code>defaultValue</code>s and a bound id. That binding is the pattern worth internalising — a server action can't receive the row id from a hidden field you trust, so you close over it on the server:</p>
+      <p>The form is the create form with three <code>defaultValue</code>s and a bound id. That binding is the pattern worth internalising — a server action can't take the row id from a hidden field you trust, so you close over it on the server:</p>
 
       <div class="code">
         <div class="code-head"><span class="path">app/ui/customers/edit-form.tsx</span><span class="tag new">new</span></div>
         <pre><code>const updateCustomerWithId = updateCustomer.bind(null, customer.id);
-const [state, formAction] = useActionState(updateCustomerWithId, initialState);</code></pre>
+const [state, formAction] = useActionState(updateCustomerWithId, initialState);
+
+<span class="c">// the picker takes the existing picture as its starting value</span>
+&lt;AvatarPicker
+  name="imageUrl"
+  defaultValue={customer.image_url}
+  error={state.errors?.imageUrl}
+/&gt;</code></pre>
       </div>
 
-      <p>The route page fetches, calls <code>notFound()</code> on a miss, and renders breadcrumbs plus the form — the exact shape of <code>invoices/[id]/edit/page.tsx</code>. Add a sibling <code>not-found.tsx</code> so a bad id gets the friendly 404 instead of the generic one.</p>
+      <p>The route page fetches, calls <code>notFound()</code> on a miss, and renders breadcrumbs plus the form — the shape of <code>invoices/[id]/edit/page.tsx</code>. Add a sibling <code>not-found.tsx</code> so a bad id gets a friendly 404. Write its copy yourself rather than copying the invoices one, or you ship a customer page apologising about an invoice.</p>
 
       <div class="check">
         <span class="lbl">Checkpoint</span>
-        <p>Editing pre-fills all three fields. Saving returns you to the list with the change visible. Visiting <code>/dashboard/customers/does-not-exist/edit</code> renders your 404, not a stack trace.</p>
+        <p>Editing pre-fills all three fields, including the current picture in the picker. Saving returns you to the list with the change visible. Changing someone to "no picture" swaps their photo for initials. <code>/dashboard/customers/does-not-exist/edit</code> renders your 404.</p>
       </div>
 
-      <h2 id="s7"><span class="step-n">STEP 07</span>Delete — and the missing foreign key</h2>
+      <h2 id="s8"><span class="step-n">STEP 08</span>Delete — and the missing foreign key</h2>
       <div class="files">
         <span class="file">app/lib/actions.ts</span>
         <span class="file">app/ui/customers/buttons.tsx</span>
+        <span class="file">app/ui/customers/table.tsx</span>
       </div>
 
       <p>Delete is three lines of SQL and the most dangerous step in the chapter. Look at what the invoices table declares:</p>
@@ -878,10 +1043,18 @@ const [state, formAction] = useActionState(updateCustomerWithId, initialState);<
           <li><code>fetchFilteredInvoices</code> uses <code>JOIN customers</code> — an <em>inner</em> join, so orphaned invoices <strong>vanish from the invoices list</strong>.</li>
           <li><code>fetchCardData</code> runs <code>SELECT COUNT(*) FROM invoices</code> with no join — so the <strong>"Total Invoices" card still counts them</strong>.</li>
         </ul>
-        <p>The card says 13, the list shows 11, and nothing errored. That's the failure mode worth remembering: no crash, no log line, just two numbers that quietly stop matching.</p>
+        <p>No crash, no log line, just two numbers that quietly stop matching. You can confirm it against your own database in one query:</p>
       </div>
 
-      <p>Two honest fixes. The database-level one is to declare the relationship you meant — <code>customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE</code> — which is correct but a schema migration against a seeded database, and <code>CREATE TABLE IF NOT EXISTS</code> won't apply it to a table that already exists.</p>
+      <div class="code">
+        <div class="code-head"><span class="path">psql</span><span class="tag">diagnostic</span></div>
+        <pre><code>SELECT invoices.id, invoices.customer_id
+FROM invoices
+LEFT JOIN customers ON invoices.customer_id = customers.id
+WHERE customers.id IS NULL;</code></pre>
+      </div>
+
+      <p>Two honest fixes. The database-level one is to declare the relationship you meant — <code>customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE</code> — correct, but a schema migration against a seeded database, and <code>CREATE TABLE IF NOT EXISTS</code> won't apply it to a table that already exists.</p>
 
       <p>The application-level one fits this chapter: refuse.</p>
 
@@ -889,8 +1062,9 @@ const [state, formAction] = useActionState(updateCustomerWithId, initialState);<
         <div class="code-head"><span class="path">app/lib/actions.ts</span><span class="tag edit">edit</span></div>
         <pre><code>export async function deleteCustomer(id: string): Promise&lt;CustomerState&gt; {
   try {
-    <span class="c">// invoices.customer_id has no foreign key, so deleting a customer</span>
-    <span class="c">// would orphan their invoices rather than fail. Refuse instead.</span>
+    <span class="c">// invoices.customer_id has no foreign key, so deleting a customer with</span>
+    <span class="c">// invoices would orphan them: gone from the invoices list (inner join)</span>
+    <span class="c">// but still counted on the dashboard card (no join). Refuse instead.</span>
     const [{ count }] = await sql&lt;{ count: string }[]&gt;`
       SELECT COUNT(*) FROM invoices WHERE customer_id = ${id}
     `;
@@ -914,12 +1088,11 @@ const [state, formAction] = useActionState(updateCustomerWithId, initialState);<
 
       <div class="note warn">
         <span class="lbl">The course's own delete button swallows this</span>
-        <p><code>DeleteInvoice</code> wires up <code>useActionState</code> and then never renders <code>state.message</code>. Every database error it returns goes straight to the floor — the button just does nothing and the user has no idea why.</p>
-        <p>Don't copy that. Your refusal message is only useful if it reaches the screen:</p>
+        <p><code>DeleteInvoice</code> wires up <code>useActionState</code> and then never renders <code>state.message</code>. Every database error it returns goes straight to the floor — the button just does nothing and the user has no idea why. Copy the structure and you inherit the silence, which is worse here, because a refusal is a message the user specifically needs to read.</p>
       </div>
 
       <div class="code">
-        <div class="code-head"><span class="path">app/ui/customers/buttons.tsx</span><span class="tag new">new</span></div>
+        <div class="code-head"><span class="path">app/ui/customers/buttons.tsx</span><span class="tag edit">edit</span></div>
         <pre><code>&lt;form action={formAction}&gt;
   &lt;button type="submit" className="rounded-md border p-2 hover:bg-gray-100"&gt;
     &lt;span className="sr-only"&gt;Delete&lt;/span&gt;
@@ -927,45 +1100,95 @@ const [state, formAction] = useActionState(updateCustomerWithId, initialState);<
   &lt;/button&gt;
 <span class="add">+ &lt;div aria-live="polite" aria-atomic="true"&gt;</span>
 <span class="add">+   {state.message && (</span>
-<span class="add">+     &lt;p className="mt-2 text-sm text-red-500"&gt;{state.message}&lt;/p&gt;</span>
+<span class="add">+     &lt;p className="mt-2 whitespace-normal text-sm text-red-500"&gt;</span>
+<span class="add">+       {state.message}</span>
+<span class="add">+     &lt;/p&gt;</span>
 <span class="add">+   )}</span>
 <span class="add">+ &lt;/div&gt;</span>
 &lt;/form&gt;</code></pre>
       </div>
 
-      <p>Finally, add the actions column: a sixth <code>&lt;th&gt;</code> with an <code>sr-only</code> label, a matching <code>&lt;td&gt;</code> holding <code>&lt;UpdateCustomer&gt;</code> and <code>&lt;DeleteCustomer&gt;</code>, the same pair in the mobile card, and a sixth cell in <code>CustomersRowSkeleton</code> so the fallback stops being one column short.</p>
+      <div class="note">
+        <span class="lbl">whitespace-normal is not decoration</span>
+        <p>The cell this button sits in is <code>whitespace-nowrap</code>, inherited by the message. Without the override, a one-sentence refusal stretches the table sideways instead of wrapping inside its cell.</p>
+      </div>
+
+      <p>Finally the actions column: a sixth <code>&lt;th&gt;</code> with an <code>sr-only</code> label, a matching <code>&lt;td&gt;</code> holding <code>&lt;UpdateCustomer&gt;</code> and <code>&lt;DeleteCustomer&gt;</code>, the same pair in the mobile card — and a sixth cell in <code>CustomersRowSkeleton</code>, which is the one everybody forgets.</p>
 
       <div class="check">
         <span class="lbl">Checkpoint</span>
-        <p>Deleting a customer with invoices shows the refusal message inline and leaves the row alone. Create a fresh customer with no invoices and delete them — the row disappears without a reload. Then check the dashboard cards: the customer count dropped, the invoice count didn't move.</p>
+        <p>Deleting a customer with invoices shows the refusal inline and leaves the row alone. A customer with no invoices deletes without a reload. Then check the dashboard: the customer count dropped, the invoice count didn't move — and the diagnostic query above still returns zero rows.</p>
       </div>
 
+      <h2 id="shared">Shared refactors</h2>
+      <p>Two things that aren't customer features but fall out of building them. Both are the same lesson: the course wrote these as if invoices would be the only consumer, and now they aren't.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Change</th><th>Why</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>ui/invoices/breadcrumbs.tsx</code> → <code>ui/breadcrumbs.tsx</code></td>
+              <td>Nothing in it is invoice-specific. Four consumers now across both features. Same move as <code>pagination.tsx</code> in step 04.</td>
+            </tr>
+            <tr>
+              <td><code>State</code> → <code>InvoiceState</code></td>
+              <td>A type called <code>State</code> was fine while there was one form. With <code>CustomerState</code> beside it, the unqualified name stops carrying information. Rename touches five files; let the compiler find them.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <span class="lbl">Let the build do the work</span>
+        <p><code>pnpm build</code> after the rename lists every unconverted import as a type error. Do not hand-search — <code>edit-form.tsx</code> is exactly the file a grep for <code>State</code> drowns in noise on, because the local variable is also called <code>state</code>.</p>
+      </div>
+
+      <h2 id="gaps">Known gaps</h2>
+      <p>What this chapter deliberately leaves open, so the next person reading the repo doesn't mistake them for finished work:</p>
+
+      <ul>
+        <li><strong>No <code>UNIQUE</code> on <code>customers.email</code></strong> — two customers can share an address. Schema-level, same as the missing foreign key, and out of scope until there's a migration story.</li>
+        <li><strong>No pictures beyond the seeded six.</strong> Real uploads mean blob storage and a signed-upload endpoint; that's its own chapter, not a footnote in this one.</li>
+        <li><strong>Icon-only edit links have no accessible name.</strong> The trash button has <code>sr-only</code> text; the pencil doesn't — in both the customers and invoices versions. One line each, worth doing in an accessibility pass rather than piecemeal.</li>
+        <li><strong>Deleting is refused, not cascaded.</strong> A customer with invoices can't be removed at all. That's the safe default, not the right long-term answer.</li>
+      </ul>
+
       <h2 id="commit">Commit</h2>
-      <p>Two commits — the read-only half and the CRUD half are separately reviewable:</p>
+      <p>Three commits — the read-only half, the shared refactors, and the CRUD:</p>
 
       <div class="commit">
         <pre>feat(customers): implement customers page with streamed search</pre>
       </div>
 
       <div class="commit">
+        <pre>refactor(ui): share breadcrumbs and namespace the invoice form state
+
+Move breadcrumbs alongside pagination now that customers uses both,
+and rename State to InvoiceState so it reads unambiguously next to
+CustomerState.</pre>
+      </div>
+
+      <div class="commit">
         <pre>feat(customers): add create, edit, and delete
 
 Mirror the invoices server actions for customers, with Zod validation
-and a form for each. Accept only root-relative image paths and fall
-back to initials, since the app has no uploader and next/image will
-not load unlisted remote hosts.
+and a form for each. Replace the free-text image field with a listbox
+picker over the seeded avatars, since a native select cannot render
+images and next/image will not load unlisted remote hosts. Fall back
+to initials when a customer has no picture.
 
 Refuse to delete a customer who still has invoices: invoices.customer_id
 has no foreign key, so the delete would orphan rows that then vanish
 from the invoice list while still counting toward the dashboard totals.
-
-Fix fetchCustomersPages ignoring its query argument, which offered a
-page 2 that rendered empty on any filtered search.</pre>
+Render the delete action's state, which was previously dropped.</pre>
       </div>
 
       <h2 id="next">Next chapter</h2>
-      <p>With the project actually finished, chapter 17 adds <code>/en</code> and <code>/ar</code> routing and Arabic RTL. It goes next because it restructures every route under a <code>[locale]</code> segment — cheaper to do while the app is small, and before cache boundaries or tests are drawn on the old tree.</p>
-      <p>One thing to carry forward: the customers table and both forms you just wrote are full of hardcoded <code>pl-</code>, <code>pr-</code> and <code>ml-</code> utilities. You'll be back in every one of them.</p>
+      <p>With the project actually finished, chapter 17 adds <code>/en</code> and <code>/ar</code> routing and Arabic RTL. It goes next because it restructures every route under a <code>[locale]</code> segment — cheaper while the app is small, and before cache boundaries or tests are drawn on the old tree.</p>
+      <p>Two things to carry forward. The table, both forms and the picker are full of hardcoded <code>pl-</code>, <code>pr-</code> and <code>ml-</code> utilities, so you'll be back in every one of them. And the picker's absolutely-positioned panel uses <code>left</code>/<code>right</code> — the kind of thing that looks fine until the whole layout mirrors.</p>
 
     </div>
   </main>

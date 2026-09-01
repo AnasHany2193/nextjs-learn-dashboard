@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://anashany2193.github.io/nextjs-learn-dashboard/sitemap.xml

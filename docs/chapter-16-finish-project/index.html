@@ -8,12 +8,31 @@
 <meta property="og:title" content="Finish the project">
 <meta property="og:description" content="Connecting the customers page the course left as a stub, then giving customers the create, edit and delete that invoices already had.">
 <meta property="og:url" content="https://anashany2193.github.io/nextjs-learn-dashboard/chapter-16-finish-project/">
-<meta property="og:image" content="https://anashany2193.github.io/nextjs-learn-dashboard/chapter-16-finish-project/opengraph-image.png">
+<meta property="og:image" content="https://anashany2193.github.io/nextjs-learn-dashboard/opengraph-image.png">
 <meta property="og:image:width" content="1686">
 <meta property="og:image:height" content="882">
 <meta property="og:image:alt" content="Acme Dashboard">
+<link rel="canonical" href="https://anashany2193.github.io/nextjs-learn-dashboard/chapter-16-finish-project/">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "Finish the project",
+  "description": "Connecting the customers page the course left as a stub, then giving customers the create, edit and delete that invoices already had.",
+  "url": "https://anashany2193.github.io/nextjs-learn-dashboard/chapter-16-finish-project/",
+  "author": {
+    "@type": "Person",
+    "name": "Anas Hany"
+  },
+  "isPartOf": {
+    "@type": "Blog",
+    "name": "Beyond the Next.js Course",
+    "url": "https://anashany2193.github.io/nextjs-learn-dashboard/"
+  }
+}
+</script>
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://anashany2193.github.io/nextjs-learn-dashboard/chapter-16-finish-project/opengraph-image.png">
+<meta name="twitter:image" content="https://anashany2193.github.io/nextjs-learn-dashboard/opengraph-image.png">
 <title>Finishing Acme</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1188,7 +1207,7 @@ Render the delete action's state, which was previously dropped.</pre>
 
       <h2 id="next">Next chapter</h2>
       <p>With the project actually finished, chapter 17 adds <code>/en</code> and <code>/ar</code> routing and Arabic RTL. It goes next because it restructures every route under a <code>[locale]</code> segment — cheaper while the app is small, and before cache boundaries or tests are drawn on the old tree.</p>
-      <p>Two things to carry forward. The table, both forms and the picker are full of hardcoded <code>pl-</code>, <code>pr-</code> and <code>ml-</code> utilities, so you'll be back in every one of them. And the picker's absolutely-positioned panel uses <code>left</code>/<code>right</code> — the kind of thing that looks fine until the whole layout mirrors.</p>
+      <p>Two things to carry forward. The table, both forms and the picker are full of hardcoded <code>pl-</code>, <code>pr-</code> and <code>ml-</code> utilities, so you'll be back in every one of them. The picker's dropdown panel, though, will survive untouched: it is <code>absolute … w-full</code> with no <code>left</code> or <code>right</code> anchor, so it mirrors for free. Sizing to the container instead of positioning against an edge is the habit worth keeping.</p>
 
     </div>
   </main>

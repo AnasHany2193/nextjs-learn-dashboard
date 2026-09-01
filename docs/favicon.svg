@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="Next.js">
+  <style>
+    .bg { fill: #000; }
+    .fg { fill: #fff; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #fff; }
+      .fg { fill: #000; }
+    }
+  </style>
+  <mask id="circle-mask">
+    <circle cx="90" cy="90" r="90" fill="#fff"/>
+  </mask>
+  <circle cx="90" cy="90" r="90" class="bg"/>
+  <g mask="url(#circle-mask)">
+    <path class="fg" d="M149.508 157.52 69.142 54H54v71.97h12.114V69.384l73.885 95.461c3.293-2.184 6.43-4.58 9.509-7.325Z"/>
+    <path class="fg" d="M115 54h12v72h-12z"/>
+  </g>
+</svg>

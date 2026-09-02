@@ -24,7 +24,7 @@ export default async function SideNav() {
       <div className="flex grow flex-row justify-between gap-2 md:flex-col">
         <NavLinks />
         <div className="hidden h-auto w-full grow rounded-md bg-gray-50 md:block"></div>
-        <div className="hidden md:block">
+        <div className="md:w-full">
           <LocaleSwitcher />
         </div>
         <form

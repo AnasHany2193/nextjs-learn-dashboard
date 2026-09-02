@@ -24,7 +24,7 @@ export default function LocaleSwitcher() {
   }
 
   return (
-    <div className="flex gap-1 text-sm">
+    <div className="flex gap-1 text-sm h-full">
       {routing.locales.map((l) => (
         <button
           key={l}

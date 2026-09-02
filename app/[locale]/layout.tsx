@@ -8,6 +8,13 @@ import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { bodyFont } from "@/app/ui/fonts";
 import { routing } from "@/i18n/routing";
 
+// Cache Components requires at least one value for every root param so
+// it can prerender a shell and check the shell is non-empty. Returning
+// [] now errors instead of deferring every path to the first visit.
+export function generateStaticParams() {
+  return routing.locales.map((locale) => ({ locale }));
+}
+
 export async function generateMetadata({
   params,
 }: {

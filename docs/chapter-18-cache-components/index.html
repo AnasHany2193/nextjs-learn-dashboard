@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="/nextjs-learn-dashboard/favicon.svg" type="image/svg+xml">
-<meta name="description" content="A plan for adopting Next.js 16 Cache Components on a bilingual, login-walled dashboard: use cache, cacheLife, cacheTag, use cache: private, and the next-intl provider that blocks every route from prerendering.">
+<meta name="description" content="Adopting Next.js 16 Cache Components on a bilingual, login-walled dashboard. Rewritten mid-build after the first plan stalled: why prerender blockers form a stack rather than a list, and why next/root-params removed an entire class of them.">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Cache Components and the static shell">
-<meta property="og:description" content="Turning eleven fully dynamic routes into prerendered static shells, and finding out what actually blocks them.">
+<meta property="og:description" content="Turning eleven fully dynamic routes into prerendered static shells, and the plan rewrite that happened when the first step order turned out to be wrong.">
 <meta property="og:url" content="https://anashany2193.github.io/nextjs-learn-dashboard/chapter-18-cache-components/">
 <meta property="og:image" content="https://anashany2193.github.io/nextjs-learn-dashboard/opengraph-image.png">
 <meta property="og:image:width" content="1686">
@@ -19,7 +19,7 @@
   "@context": "https://schema.org",
   "@type": "TechArticle",
   "headline": "Cache Components and the static shell",
-  "description": "Turning eleven fully dynamic routes into prerendered static shells, and finding out what actually blocks them.",
+  "description": "Turning eleven fully dynamic routes into prerendered static shells, and the plan rewrite that happened when the first step order turned out to be wrong.",
   "url": "https://anashany2193.github.io/nextjs-learn-dashboard/chapter-18-cache-components/",
   "author": { "@type": "Person", "name": "Anas Hany" },
   "isPartOf": {
@@ -484,23 +484,30 @@
 <div class="shell">
 
   <nav class="rail" aria-label="Chapter contents">
-    <p class="rail-title">Chapter 18 · Plan</p>
+    <p class="rail-title">Chapter 18 · Plan v2</p>
     <ol>
-      <li><a href="#why"><span class="n">·</span><span>Why this chapter</span></a></li>
-      <li><a href="#recon"><span class="n">·</span><span>Recon</span></a></li>
-      <li><a href="#decisions"><span class="n">·</span><span>Decisions</span></a></li>
+      <li><a href="#rewrite"><span class="n">·</span><span>Why this was rewritten</span></a></li>
+      <li><a href="#stack"><span class="n">·</span><span>Blockers are a stack</span></a></li>
+      <li><a href="#taxonomy"><span class="n">·</span><span>Blocker taxonomy</span></a></li>
+      <li><a href="#status"><span class="n">·</span><span>Where we are now</span></a></li>
+      <li class="sep">Stage 1 · Unblock</li>
       <li><a href="#s1"><span class="n">01</span><span>Flag &amp; root params</span></a></li>
-      <li><a href="#s2"><span class="n">02</span><span>Unblock the root layout</span></a></li>
-      <li><a href="#s3"><span class="n">03</span><span>Locale out of the data layer</span></a></li>
-      <li><a href="#s4"><span class="n">04</span><span>use cache &amp; cacheLife</span></a></li>
-      <li><a href="#s5"><span class="n">05</span><span>Tags &amp; invalidation</span></a></li>
-      <li><a href="#s6"><span class="n">06</span><span>searchParams into Suspense</span></a></li>
-      <li><a href="#s7"><span class="n">07</span><span>The session read</span></a></li>
-      <li><a href="#s8"><span class="n">08</span><span>Measure it</span></a></li>
+      <li><a href="#s2"><span class="n">02</span><span>next-intl via root params</span></a></li>
+      <li><a href="#s3"><span class="n">03</span><span>Client URL hooks</span></a></li>
+      <li class="sep">Stage 2 · Cache</li>
+      <li><a href="#s4"><span class="n">04</span><span>Locale out of the data layer</span></a></li>
+      <li><a href="#s5"><span class="n">05</span><span>use cache &amp; cacheLife</span></a></li>
+      <li><a href="#s6"><span class="n">06</span><span>Tags &amp; invalidation</span></a></li>
+      <li class="sep">Stage 3 · Stream</li>
+      <li><a href="#s7"><span class="n">07</span><span>searchParams</span></a></li>
+      <li><a href="#s8"><span class="n">08</span><span>The session read</span></a></li>
+      <li class="sep">Stage 4 · Prove</li>
+      <li><a href="#s9"><span class="n">09</span><span>Measure it</span></a></li>
       <li class="sep">Reference</li>
       <li><a href="#escape"><span class="n">·</span><span>The escape hatch</span></a></li>
       <li><a href="#risks"><span class="n">·</span><span>What could go wrong</span></a></li>
       <li><a href="#commits"><span class="n">·</span><span>Commit discipline</span></a></li>
+      <li><a href="#wrong"><span class="n">·</span><span>What v1 got wrong</span></a></li>
       <li><a href="#honest"><span class="n">·</span><span>What this isn't</span></a></li>
     </ol>
   </nav>
@@ -508,167 +515,176 @@
   <main>
     <div class="prose">
 
-      <p class="eyebrow">Self-directed · Chapter 18 · Plan</p>
+      <p class="eyebrow">Self-directed · Chapter 18 · Plan, second draft</p>
       <h1>Cache Components and the static shell</h1>
-      <p class="standfirst">Every route in this app is server-rendered on demand. Eleven of eleven. Next 16's Cache Components model can turn most of that into a prerendered shell that ships instantly, with only the genuinely per-request parts streaming in behind it. This is the plan for getting there, written after a reconnaissance run that already found the one thing blocking all eleven.</p>
+      <p class="standfirst">Every route in this app is server-rendered on demand. Eleven of eleven. Next 16's Cache Components model can turn most of that into a prerendered shell, with only the genuinely per-request parts streaming in behind it. This is the second draft of the plan, written after the first one stalled on its own step 02 for an entire session.</p>
 
-      <div class="learn">
-        <h4>What this chapter should produce</h4>
-        <ul>
-          <li><code>cacheComponents: true</code> on Next.js <strong>16.3.3</strong></li>
-          <li>A non-empty <strong>static shell</strong> for every route that can have one</li>
-          <li><code>use cache</code> and <code>cacheLife</code> on the read paths in <code>app/lib/data.ts</code></li>
-          <li><code>cacheTag</code> plus <code>updateTag</code> replacing six blanket <code>revalidatePath</code> calls</li>
-          <li>The Chapter 17 known gap (formatting inside the data layer) closed, because it becomes a hard blocker here</li>
-          <li>A before and after route table, which is the actual deliverable</li>
-        </ul>
+      <div class="note warn">
+        <span class="lbl">This document was rewritten mid-build</span>
+        <p>The first draft was a reasonable-looking plan that turned out to be ordered wrong, and one of its code samples did not compile. Rather than quietly fix it, the mistake is kept and explained, because <em>why</em> it was wrong is the most transferable thing in this chapter. See <a href="#wrong">what v1 got wrong</a>.</p>
       </div>
 
-      <h2 id="why">Why this chapter, and why now</h2>
+      <h2 id="rewrite">Why this was rewritten</h2>
 
-      <p>Chapter 17 moved every route under <code>app/[locale]/</code>. Drawing cache boundaries before that would have meant drawing them twice, so this waited. Now the route tree is stable and the boundaries can be drawn once.</p>
+      <p>The first plan had eight steps, each with a checkpoint of the form <em>"route X builds without error"</em>. Step 02's checkpoint was <code>/en/login</code> and <code>/ar/login</code>, and it said, in bold, to stop and finish step 02 before touching anything else.</p>
 
-      <p>The premise of Cache Components is a reversal. In the old model, a route was static until something made it dynamic, and a single <code>cookies()</code> call anywhere in the tree quietly cost you the whole page. In the new model <strong>nothing is cached unless you say so</strong>, and the framework refuses to build until every uncached read is either wrapped in <code>use cache</code> or pushed behind a <code>&lt;Suspense&gt;</code> boundary. The compiler stops guessing and starts asking.</p>
+      <p>That instruction was followed. Step 02 then took four separate fixes, each revealed only after the previous one landed:</p>
 
-      <p>That is a better fit for a learning repo than for a deadline: the build failures <em>are</em> the lesson. So the working method for this chapter is to enable the flag first, read what breaks, and let the error list write the step order.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>#</th><th>What the build said</th><th>What it actually needed</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td><code>Cannot find name 'getFormats'</code></td>
+              <td>The plan's own probe snippet imported a function that is not a public export. It never compiled.</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>Blocking read at <code>i18n/request.ts</code>, <code>await requestLocale</code></td>
+              <td>Locale resolution falling through to <code>headers()</code>.</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>Unstable value <code>new Date()</code> at <code>getNow()</code></td>
+              <td>A cached build-time <code>now</code> in the request config.</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td><code>useSearchParams()</code> outside <code>&lt;Suspense&gt;</code></td>
+              <td>A boundary around a component the plan had assigned to <strong>step 06</strong>.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Item 4 is the one that broke the plan rather than merely delaying it. Step 02's checkpoint could not be reached without doing part of step 06. The steps were not independent, and the checkpoints assumed they were.</p>
+
+      <h2 id="stack">The idea the first plan was missing</h2>
+
+      <div class="note ok">
+        <span class="lbl">The transferable finding</span>
+        <p><strong>Prerender blockers are a stack, not a list.</strong> The build reports only the <em>first</em> blocker it hits on each route. Fix it and the next one appears, on the same route, with a completely different error message and often in a completely different file. A route goes green only when every blocker in its whole tree is gone.</p>
+      </div>
+
+      <p>This has two consequences that should have shaped the first plan and did not.</p>
+
+      <p><strong>A route-shaped checkpoint is a late checkpoint.</strong> "Login builds clean" is not a step-02 outcome, it is the outcome of every step that touches anything login renders: the root layout, the i18n config, and every client component on the page. Putting it at step 02 guaranteed the step could not close.</p>
+
+      <p><strong>Steps should be ordered by blast radius, not by subject matter.</strong> The root layout and the shared chrome are on every route, so anything blocking there blocks everything, and nothing else can be verified until they are clear. The first plan put client-hook boundaries at step 06 because they felt like a rendering concern rather than a config concern. In reality <code>LocaleSwitcher</code> and <code>NavLinks</code> render inside <code>SideNav</code>, which renders in the dashboard layout, which means those two components alone block all fourteen dashboard paths.</p>
+
+      <p>So this draft is organised in <strong>stages</strong>. Stage 1 clears everything with app-wide blast radius. Only at the end of stage 1 does the first route-shaped checkpoint appear.</p>
+
+      <h2 id="taxonomy">Blocker taxonomy</h2>
+
+      <p>Every prerender failure seen in this app so far, what causes it, and where it gets fixed. This table is the practical core of the chapter: with it, a new error is a lookup rather than an investigation.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Error</th><th>Cause</th><th>Fix</th><th>Step</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>A required root parameter was not provided</td>
+              <td>No <code>generateStaticParams</code> for <code>[locale]</code></td>
+              <td>Return every locale</td>
+              <td>01</td>
+            </tr>
+            <tr>
+              <td>Uncached or runtime data, at <code>await requestLocale</code></td>
+              <td>next-intl resolving the locale from <code>headers()</code></td>
+              <td><code>next/root-params</code></td>
+              <td>02</td>
+            </tr>
+            <tr>
+              <td>Uncached or runtime data, at a dynamic <code>import()</code></td>
+              <td>Message JSON loaded per request</td>
+              <td><code>use cache</code> + <code>cacheLife('max')</code></td>
+              <td>02</td>
+            </tr>
+            <tr>
+              <td>Unstable value <code>new Date()</code></td>
+              <td><code>getNow()</code> reading the clock</td>
+              <td>Cache a build-time <code>now</code> in the request config</td>
+              <td>02</td>
+            </tr>
+            <tr>
+              <td><code>useSearchParams()</code> outside Suspense</td>
+              <td>URL data, only knowable at request time</td>
+              <td><code>&lt;Suspense&gt;</code> around the smallest component that reads it</td>
+              <td>03</td>
+            </tr>
+            <tr>
+              <td><code>usePathname()</code> outside Suspense</td>
+              <td>Same, on routes with unresolved dynamic params</td>
+              <td>Same</td>
+              <td>03</td>
+            </tr>
+            <tr>
+              <td>Uncached or runtime data, in a data function</td>
+              <td>Postgres read with no cache scope</td>
+              <td><code>use cache</code> + <code>cacheLife</code></td>
+              <td>05</td>
+            </tr>
+            <tr>
+              <td>Uncached or runtime data, at <code>await searchParams</code></td>
+              <td>Server-side URL read at the top of a page</td>
+              <td>Pass the promise into a Suspense child</td>
+              <td>07</td>
+            </tr>
+            <tr>
+              <td>Uncached or runtime data, at a session read</td>
+              <td><code>cookies()</code>, which can never prerender</td>
+              <td><code>&lt;Suspense&gt;</code>, plus <code>use cache: private</code> if derived</td>
+              <td>08</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <div class="note">
-        <span class="lbl">Terminology, because the docs assume it</span>
-        <p>The <strong>static shell</strong> is the part of a route's HTML that can be produced at build time, with holes where the dynamic parts go. A visitor gets the shell immediately from the edge; the holes fill in from the server as they stream. This is what used to be called Partial Prerendering. In Next 16 the <code>experimental_ppr</code> flag is gone and PPR is simply what Cache Components does.</p>
+        <span class="lbl">Two error strings, two very different fixes</span>
+        <p><strong>"encountered uncached or runtime data"</strong> means an async read that could be cached or streamed. It has three escapes: cache it, wrap it, or opt out.</p>
+        <p><strong>"encountered the unstable value <code>new Date()</code>"</strong> means synchronous IO. It has <em>no</em> streaming escape and <code>instant = false</code> does not clear it. It must be cached, moved to the client, or removed. Reading the two messages as the same category costs an afternoon.</p>
       </div>
 
-      <h2 id="recon">Recon: what the flag actually says</h2>
+      <h2 id="status">Where we are now</h2>
 
-      <p>Before writing the plan, the flag was switched on, the build was run, and the tree was reverted. Everything in this section is real output from this repo, not from the documentation.</p>
+      <p>Stage 1 is two thirds done. These numbers are from real build output on this repo, not projections.</p>
 
-      <h3>Finding 1: the baseline is as bad as it can be</h3>
-      <p><code>pnpm build</code> on the current <code>main</code>:</p>
-
-      <div class="code">
-        <div class="code-head"><span class="path">pnpm build · before</span><span class="tag">output</span></div>
-        <pre><code>Route (app)
-┌ ○ /_not-found
-├ ƒ /[locale]
-├ ƒ /[locale]/dashboard
-├ ƒ /[locale]/dashboard/customers
-├ ƒ /[locale]/dashboard/customers/[id]/edit
-├ ƒ /[locale]/dashboard/customers/create
-├ ƒ /[locale]/dashboard/invoices
-├ ƒ /[locale]/dashboard/invoices/[id]/edit
-├ ƒ /[locale]/dashboard/invoices/create
-├ ƒ /[locale]/login
-├ ƒ /query
-└ ƒ /seed
-
-<span class="c">○  (Static)   prerendered as static content
-ƒ  (Dynamic)  server-rendered on demand</span></code></pre>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Milestone</th><th>Failing paths</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Flag off (baseline)</td><td>n/a, 11 of 11 routes dynamic</td></tr>
+            <tr><td>Flag on, nothing else</td><td>build dies before rendering</td></tr>
+            <tr><td>After step 01</td><td>18</td></tr>
+            <tr><td>After step 02</td><td><strong>16</strong>, login now prerenders in both locales</td></tr>
+            <tr><td>After step 03 (projected)</td><td>14, home clears, dashboard chrome clears</td></tr>
+          </tbody>
+        </table>
       </div>
 
-      <p>One static route, and it is the 404 page. Every route that a user actually visits, including the login page which has no per-user content at all, is rendered from scratch on every request. <strong>That is the number this chapter moves.</strong></p>
+      <p>The 16 that remain are the two home paths, blocked only by <code>LocaleSwitcher</code>, and the fourteen dashboard paths, blocked by the shared chrome and then by uncached database reads behind it.</p>
 
-      <h3>Finding 2: root params must be enumerated</h3>
-      <p>Enabling the flag fails immediately, before any rendering:</p>
-
-      <div class="code">
-        <div class="code-head"><span class="path">pnpm build · error 1</span><span class="tag">output</span></div>
-        <pre><code><span class="del">Error: A required root parameter (locale) was not provided in
-generateStaticParams for /[locale], please provide at least one value.</span></code></pre>
-      </div>
-
-      <p>The app has no <code>generateStaticParams</code> anywhere. Without Cache Components that was fine, because every path was deferred to the first runtime visit. With it, Next needs at least one concrete value per root param so it has something to prerender and can check that the resulting shell is not empty.</p>
-
-      <h3>Finding 3: one component blocks all eighteen paths</h3>
-      <p>With that fixed, the build gets as far as rendering and then fails on every route at once. Running with <code>--debug-prerender</code> points at the same line every time:</p>
-
-      <div class="code">
-        <div class="code-head"><span class="path">pnpm build --debug-prerender · error 2</span><span class="tag">output</span></div>
-        <pre><code><span class="del">Error: Route "/[locale]/dashboard": Next.js encountered uncached or
-runtime data during prerendering.</span>
-
-`fetch(...)`, `cookies()`, `headers()`, `params`, `searchParams`, or
-`connection()` accessed outside of &lt;Suspense&gt; prevents the route from
-being prerendered, blocking the page load and leading to a slower
-user experience.
-
-    at RootLayout (app\[locale]\layout.tsx:62:9)
-  60 |     &lt;html lang={locale} dir={dir}&gt;
-  61 |       &lt;body className={`${bodyFont(locale).className} antialiased`}&gt;
-<span class="del">&gt; 62 |         &lt;NextIntlClientProvider&gt;{children}&lt;/NextIntlClientProvider&gt;</span>
-     |         ^
-
-<span class="del">&gt; Export encountered errors on 18 paths</span></code></pre>
-      </div>
-
-      <p>Eighteen paths, which is nine routes across two locales, and a single cause. <code>NextIntlClientProvider</code> sits in the root layout, so whatever it does, every route inherits. Reading the installed package explains it. The server version of the provider performs five awaits before it renders anything:</p>
-
-      <div class="code">
-        <div class="code-head"><span class="path">node_modules/next-intl/.../NextIntlClientProviderServer.js</span><span class="tag">installed</span></div>
-        <pre><code>formats:  formats  === undefined ? await getFormats()     : formats,
-locale:   locale   ?? (await getLocaleCached()),
-messages: messages === undefined ? await getMessages()    : messages,
-now:      now      ?? (await getConfigNow()),
-timeZone: timeZone ?? (await getTimeZone()),</code></pre>
-      </div>
-
-      <p>All five funnel into next-intl's <code>getConfig()</code>, which calls <code>getRequestConfig</code> from <code>i18n/request.ts</code>. That file does a dynamic <code>import()</code> of the message JSON, and a dynamic import is uncached IO. So the root layout performs uncached IO on every render, and under Cache Components that is fatal to the shell.</p>
-
-      <h3>Finding 4: the obvious fix is not sufficient</h3>
-      <p>The obvious move is to cache the message import, which was tried:</p>
-
-      <div class="code">
-        <div class="code-head"><span class="path">i18n/request.ts</span><span class="tag edit">attempted</span></div>
-        <pre><code>async function loadMessages(locale: string) {
-  <span class="add">"use cache";
-  cacheLife("max");</span>
-  return (await import(`../messages/${locale}.json`)).default;
-}</code></pre>
-      </div>
-
-      <p><strong>The build failed identically.</strong> Same line, same eighteen paths. So at least one of the other four reads is independently blocking, and the plan cannot assume this is a one-line fix. Step 02 is written as a bisection rather than as a solution, which is the honest way to write a step whose answer is not yet known.</p>
-
-      <div class="note warn">
-        <span class="lbl">This is the chapter's real risk</span>
-        <p>Steps 03 to 08 are ordinary work with known shapes. Step 02 is load-bearing and unresolved: if next-intl 4.14.1 simply cannot render its provider inside a prerender, the ceiling for this chapter drops from "most routes get a shell" to "the flag is on and routes opt out". That outcome is worth writing down too, but it should be discovered in step 02, not in step 08.</p>
-      </div>
-
-      <h2 id="decisions">Decisions, and what they cost</h2>
-
-      <h3>Adopt directly, not incrementally</h3>
-      <p>The migration guide offers <code>instant = false</code> on every segment as a way to get the app building immediately and convert routes one at a time. For an eleven-route app that is more bookkeeping than benefit, and it hides exactly the errors this chapter exists to read. Direct adoption, with <code>instant = false</code> kept as a deliberate escape hatch (see <a href="#escape">the escape hatch</a>) rather than a starting position.</p>
-
-      <h3>Cache in the data layer, not in the pages</h3>
-      <p>Every database read already goes through <code>app/lib/data.ts</code>. Putting <code>use cache</code> on those functions means one place to reason about lifetimes, and it keeps the pages readable. The alternative, caching whole page components, couples the cache key to the route and makes the same query cached twice under two different keys.</p>
-
-      <h3>Plain <code>use cache</code>, not <code>use cache: remote</code></h3>
-      <p>Plain <code>use cache</code> stores entries in memory. On serverless that means they die with the instance and do not survive a deployment. <code>use cache: remote</code> gives durable shared storage and is the correct production answer, but it needs a cache handler this project does not have and will not pay for. Using the in-memory default and <strong>saying so plainly</strong> is better than pretending the hit rate is production-grade.</p>
-
-      <div class="note warn">
-        <span class="lbl">Worth knowing before you migrate anything</span>
-        <p>The old <code>fetch</code> Data Cache and <code>unstable_cache</code> both persisted across deployments and across serverless instances. Plain <code>use cache</code> does not. Migrating a hot <code>unstable_cache</code> path to <code>use cache</code> without a cache handler is a downgrade in persistence, even though it looks like a modernisation.</p>
-      </div>
-
-      <h3>Keep the login page honest</h3>
-      <p>The login page has no user-specific content and should end up fully static. If it does not, something is wrong with step 02, and it is the cheapest possible test case. It becomes the canary for the whole chapter.</p>
-
-      <h2 id="s1"><span class="step-n">Step 01</span>Turn on the flag and enumerate the root param</h2>
+      <h2 id="s1"><span class="step-n">Step 01 · done</span>Turn on the flag and enumerate the root param</h2>
 
       <div class="files">
         <span class="file">next.config.ts</span>
         <span class="file">app/[locale]/layout.tsx</span>
       </div>
 
-      <p>The flag goes on the config object, inside the next-intl plugin wrapper that is already there.</p>
-
       <div class="code">
         <div class="code-head"><span class="path">next.config.ts</span><span class="tag edit">edit</span></div>
         <pre><code>const nextConfig: NextConfig = {
 <span class="add">  cacheComponents: true,</span>
-};
-
-export default createNextIntlPlugin()(nextConfig);</code></pre>
+};</code></pre>
       </div>
-
-      <p>Then give <code>[locale]</code> its two values. <code>routing.locales</code> is already the single source of truth from Chapter 17, so this stays derived rather than becoming a third list to keep in sync.</p>
 
       <div class="code">
         <div class="code-head"><span class="path">app/[locale]/layout.tsx</span><span class="tag edit">edit</span></div>
@@ -682,12 +698,12 @@ export default createNextIntlPlugin()(nextConfig);</code></pre>
 
       <div class="note">
         <span class="lbl">Locales are not the same as ids</span>
-        <p>There are exactly two locales, so listing both is complete. For <code>[id]</code> routes the rule is different: return a <em>subset</em>, often just one, and let the rest render on request. Paths not returned are still served, they just do not get a prebuilt shell. Do not try to enumerate every customer id.</p>
+        <p>Two locales, so listing both is complete. For <code>[id]</code> routes the rule inverts: return a small subset and let the rest render on request. Paths you do not return are still served, they just ship without a prebuilt shell. Do not enumerate every customer id.</p>
       </div>
 
       <div class="check">
-        <span class="lbl">Checkpoint</span>
-        <span>The build gets past "Collecting page data" and starts "Generating static pages using 14 workers (0/31)". Failures after this point are rendering failures, which is progress.</span>
+        <span class="lbl">Checkpoint · met</span>
+        <span>The build reaches the rendering stage. 18 paths fail there, which is the real work starting.</span>
       </div>
 
       <h4>Commit</h4>
@@ -699,100 +715,201 @@ values, derived from routing.locales so it stays a single source of truth.
 
 Without at least one value the build fails before rendering starts: Cache
 Components needs a concrete param to prerender and to verify the resulting
-shell is non-empty. The build now reaches the rendering stage, where the
-remaining failures are the actual work.</pre>
+shell is non-empty.</pre>
       </div>
 
-      <h2 id="s2"><span class="step-n">Step 02</span>Unblock the root layout</h2>
+      <h2 id="s2"><span class="step-n">Step 02 · done</span>Make next-intl prerenderable</h2>
 
       <div class="files">
         <span class="file">i18n/request.ts</span>
         <span class="file">app/[locale]/layout.tsx</span>
       </div>
 
-      <p>This is the step that decides the chapter. From recon, the provider performs five request-config reads and caching the message import alone did not clear the error. So work it as a bisection, not as a guess.</p>
-
-      <h3>Bisect: pass every prop explicitly</h3>
-      <p>Each of the five awaits is skipped when the corresponding prop is supplied. Hoist all five into the layout so the failing one names <em>your</em> line instead of the provider's:</p>
+      <p>The root layout renders <code>NextIntlClientProvider</code>, so anything it blocks on blocks every route in the app. Reading the installed package shows the server provider performing five awaits before it renders:</p>
 
       <div class="code">
-        <div class="code-head"><span class="path">app/[locale]/layout.tsx</span><span class="tag">probe</span></div>
-        <pre><code><span class="c">// Temporary. Whichever await blocks will now point here, and
-// --debug-prerender will name the line instead of the provider.</span>
-const messages = await getMessages();
+        <div class="code-head"><span class="path">node_modules/next-intl/.../NextIntlClientProviderServer.js</span><span class="tag">installed</span></div>
+        <pre><code>formats:  formats  === undefined ? await getFormats()  : formats,
+locale:   locale   ?? (await getLocaleCached()),
+messages: messages === undefined ? await getMessages() : messages,
+now:      now      ?? (await getConfigNow()),
+timeZone: timeZone ?? (await getTimeZone()),</code></pre>
+      </div>
+
+      <p>All five funnel into next-intl's <code>getConfig()</code>, which calls <code>getRequestConfig</code> in <code>i18n/request.ts</code>. Three separate things in that path block a prerender, and they have to be fixed together.</p>
+
+      <h3>The one that matters: stop resolving the locale from the request</h3>
+
+      <p>next-intl's <code>requestLocale</code> resolves through <code>getRequestLocale()</code>, which returns a cached value if <code>setRequestLocale()</code> populated one and otherwise falls back to reading <code>headers()</code>. Under prerendering the cache is not reliably populated across segment boundaries, so it reaches <code>headers()</code> and blocks.</p>
+
+      <p>The documented remedy for that is to call <code>setRequestLocale(locale)</code> in every page and layout that touches a next-intl API. In this app that is seven files, all of which then need their <code>params</code> plumbed in. <strong>Do not do that.</strong> Both <code>requestLocale</code> and <code>setRequestLocale</code> are deprecated in next-intl 4.14.1:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">node_modules/next-intl/dist/types/.../getRequestConfig.d.ts</span><span class="tag">installed</span></div>
+        <pre><code>/**
+ * @deprecated Please migrate to [`next/root-params`]
+ */
+requestLocale: Promise&lt;string | undefined&gt;;</code></pre>
+      </div>
+
+      <p>Next 16 ships <code>next/root-params</code>, which exposes each root dynamic segment as an async getter callable from any Server Component with no prop drilling and no request read. The types are generated during <code>next dev</code> and <code>next build</code>:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">.next/types/root-params.d.ts</span><span class="tag">generated</span></div>
+        <pre><code>declare module 'next/root-params' {
+  export function locale(): Promise&lt;string&gt;
+}</code></pre>
+      </div>
+
+      <p>Reading the locale from there instead removes the entire class of failure, and <code>setRequestLocale</code> can be deleted from the codebase outright rather than spread to six more files.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">i18n/request.ts</span><span class="tag edit">edit</span></div>
+        <pre><code><span class="add">import { locale as rootLocale } from "next/root-params";</span>
+
+<span class="c">// Message files are build-time constants, so 'max' is honest. The
+// dynamic import() is uncached IO, which blocked every route while it
+// ran per request.</span>
+async function loadMessages(locale: string) {
+  <span class="add">"use cache";
+  cacheLife("max");</span>
+  return (await import(`../messages/${locale}.json`)).default;
+}
+
+<span class="c">// next-intl only needs `now` for format.relativeTime, which this app
+// never calls. A live new Date() is synchronous IO the prerender rejects
+// with no escape hatch, so cache a fixed build-time value instead.</span>
+<span class="add">async function getBuildTime() {
+  "use cache";
+  cacheLife("max");
+  return new Date();
+}</span>
+
+export default getRequestConfig(async () =&gt; {
+  <span class="del">- const requested = await requestLocale;   // reaches headers()</span>
+  <span class="add">+ const requested = await rootLocale();     // part of the route</span>
+  const locale = hasLocale(routing.locales, requested)
+    ? requested : routing.defaultLocale;
+
+  return {
+    locale,
+    <span class="add">messages: await loadMessages(locale),
+    now: await getBuildTime(),</span>
+  };
+});</code></pre>
+      </div>
+
+      <h3>And pass the provider its props</h3>
+
+      <p>With the config prerenderable, hoist the remaining reads into the layout so the provider skips its own. One trap: <code>getFormats</code> is <strong>not</strong> a public export, only the runtime <code>getFormatter</code> is. Since this app configures no custom formats, an empty object satisfies the check and skips the read.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/[locale]/layout.tsx</span><span class="tag edit">edit</span></div>
+        <pre><code>const messages = await getMessages();
 const timeZone = await getTimeZone();
-const formats  = await getFormats();
-const now      = await getNow();
+<span class="c">// `now` is deliberately not hoisted: getNow() reads the clock. The
+// cached value in the request config resolves it instead.</span>
 
-return (
-  &lt;NextIntlClientProvider
-    locale={locale} messages={messages} timeZone={timeZone}
-    formats={formats} now={now}
-  &gt;
-    {children}
-  &lt;/NextIntlClientProvider&gt;
-);</code></pre>
-      </div>
-
-      <p>Run <code>pnpm build --debug-prerender</code> and read which line it names. Then remove the probes one at a time to find the minimum set that has to be passed explicitly.</p>
-
-      <h3>The three shapes the answer can take</h3>
-
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr><th>If the blocker is</th><th>Then</th><th>Cost</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Only the message import</td>
-              <td>Cache <code>loadMessages</code> with <code>cacheLife('max')</code> and pass <code>messages</code> in explicitly, so the provider skips its own read</td>
-              <td>None. Messages are build-time constants.</td>
-            </tr>
-            <tr>
-              <td><code>getTimeZone()</code>, via <code>Intl.DateTimeFormat().resolvedOptions()</code></td>
-              <td>Pass a fixed <code>timeZone</code> string rather than letting it resolve from the environment</td>
-              <td>You must pick one. Server default is not a real answer anyway.</td>
-            </tr>
-            <tr>
-              <td><code>getRequestLocale()</code> reaching <code>headers()</code></td>
-              <td><code>setRequestLocale(locale)</code> already runs before the provider, so this should be populated from cache. If it is not, the ordering is wrong or the React cache is not shared with the prerender.</td>
-              <td>Investigation. This is the bad outcome.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="note">
-        <span class="lbl">Why <code>now</code> is the awkward one</span>
-        <p><code>now: now ?? (await getConfigNow())</code> awaits whenever the prop is undefined, and you cannot supply a real value without calling <code>new Date()</code>, which is exactly the synchronous IO the prerender rejects. If <code>now</code> turns out to be the blocker, the fix is to set a <code>now</code> in the request config so <code>getConfigNow()</code> resolves from cached config rather than to pass one from the layout.</p>
+&lt;NextIntlClientProvider
+  locale={locale} messages={messages} timeZone={timeZone}
+  <span class="add">formats={{}}</span>   <span class="c">// getFormats() is not exported; {} skips the read</span>
+&gt;</code></pre>
       </div>
 
       <div class="check">
-        <span class="lbl">Checkpoint</span>
-        <span><code>/en/login</code> and <code>/ar/login</code> build without error. If the canary route still fails, stop and finish step 02 before touching anything else.</span>
+        <span class="lbl">Checkpoint · met</span>
+        <span>No <code>i18n/request.ts</code> frame appears anywhere in the build output, and <code>setRequestLocale</code> greps to zero hits. 18 paths drop to 16, with <code>/en/login</code> and <code>/ar/login</code> now prerendering.</span>
       </div>
 
       <h4>Commit</h4>
       <div class="commit">
-        <pre>fix(i18n): make the message config prerenderable
+        <pre>fix(i18n): resolve the locale from root params instead of the request
 
-NextIntlClientProvider sits in the root layout and awaits five request-config
-reads before it renders. i18n/request.ts resolves those with a dynamic
-import() of the message JSON, which is uncached IO, so every route inherited
-a blocking read and no route could produce a static shell.
+NextIntlClientProvider sits in the root layout and performs five request
+config reads before rendering, so every route inherited a blocking read and
+none could produce a static shell.
 
-Cache the message load and pass the resolved values to the provider
-explicitly so it skips its own reads. Message files are build-time constants,
-so 'max' is the honest lifetime.</pre>
+Three things blocked, all in i18n/request.ts. Locale resolution fell through
+to headers(); the message JSON was loaded by an uncached dynamic import();
+and `now` read the clock, which is synchronous IO the prerender rejects with
+no escape hatch.
+
+Read the locale from next/root-params, which is part of the route rather
+than the request, and cache the messages and a build-time `now`. Both
+requestLocale and setRequestLocale are deprecated in favour of root params
+in next-intl 4.14.1, so setRequestLocale is removed entirely rather than
+spread to every page that calls a next-intl API.
+
+Pass the provider its props explicitly. Note getFormats is not a public
+export, only getFormatter is, and this app configures no custom formats,
+so an empty object skips that read.</pre>
+      </div>
+
+      <h2 id="s3"><span class="step-n">Step 03</span>Client URL hooks behind Suspense</h2>
+
+      <div class="files">
+        <span class="file">app/ui/locale-switcher.tsx</span>
+        <span class="file">app/ui/dashboard/nav-links.tsx</span>
+        <span class="file">app/ui/dashboard/sidenav.tsx</span>
+        <span class="file">app/[locale]/page.tsx</span>
+      </div>
+
+      <p>This was step 06 in the first draft. It is step 03 here because it has the widest blast radius left in the app.</p>
+
+      <p>Five client components read URL state. What matters is not that they exist but <em>where they render</em>:</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Component</th><th>Reads</th><th>Renders in</th><th>Paths blocked</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>locale-switcher</code></td><td><code>useSearchParams</code>, <code>usePathname</code></td><td>SideNav, home, login</td><td><strong>16</strong></td></tr>
+            <tr><td><code>nav-links</code></td><td><code>usePathname</code></td><td>SideNav</td><td>14</td></tr>
+            <tr><td><code>search</code></td><td><code>useSearchParams</code></td><td>list pages</td><td>4</td></tr>
+            <tr><td><code>pagination</code></td><td><code>useSearchParams</code></td><td>list pages</td><td>4</td></tr>
+            <tr><td><code>login-form</code></td><td><code>useSearchParams</code></td><td>login</td><td>0, already wrapped</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>One component, <code>LocaleSwitcher</code>, is on the critical path for every remaining failing route, because chapter 17's follow-up work put it in the sidebar and on both public pages. Wrapping it is the single highest-value edit in the chapter.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/ui/dashboard/sidenav.tsx</span><span class="tag edit">planned</span></div>
+        <pre><code>&lt;Suspense fallback={&lt;NavLinksSkeleton /&gt;}&gt;
+  &lt;NavLinks /&gt;
+&lt;/Suspense&gt;
+...
+&lt;Suspense fallback={&lt;LocaleSwitcherSkeleton /&gt;}&gt;
+  &lt;LocaleSwitcher /&gt;
+&lt;/Suspense&gt;</code></pre>
       </div>
 
       <div class="note">
-        <span class="lbl">If the bisection lands somewhere else</span>
-        <p>Rewrite the second paragraph to name whichever read actually blocked. If no combination clears it, the commit becomes <code>build(cache): opt the root layout out of instant validation</code> and the body records what was tried, which is a finding rather than a failure.</p>
+        <span class="lbl">Push the read down, do not wrap the world</span>
+        <p>Wrapping the largest component works and throws away most of the benefit, because everything inside a boundary leaves the shell. Wrap the smallest component that actually reads the URL. Here that means wrapping <code>NavLinks</code> and <code>LocaleSwitcher</code> individually rather than wrapping <code>SideNav</code> once, so the sidebar frame itself stays static.</p>
       </div>
 
-      <h2 id="s3"><span class="step-n">Step 03</span>Get the locale out of the data layer</h2>
+      <div class="check">
+        <span class="lbl">Checkpoint</span>
+        <span>No <code>CLIENT_HOOK_DYNAMIC</code> digest anywhere in the build output. <code>/en</code> and <code>/ar</code> prerender. This is the first route-shaped checkpoint in the plan, and it closes stage 1.</span>
+      </div>
+
+      <h4>Commit</h4>
+      <div class="commit">
+        <pre>perf(ui): stream url-dependent client components behind suspense
+
+useSearchParams and usePathname resolve only at request time, so a component
+calling either cannot be part of a static shell. LocaleSwitcher and NavLinks
+both render inside SideNav, and LocaleSwitcher also renders on both public
+pages, so between them they blocked every route still failing.
+
+Wrap each reader individually rather than wrapping SideNav once, so the
+sidebar frame stays in the shell and only the two dynamic pieces stream.</pre>
+      </div>
+
+      <h2 id="s4"><span class="step-n">Step 04</span>Get the locale out of the data layer</h2>
 
       <div class="files">
         <span class="file">app/lib/data.ts</span>
@@ -801,53 +918,37 @@ so 'max' is the honest lifetime.</pre>
         <span class="file">app/ui/customers/table.tsx</span>
       </div>
 
-      <p>Chapter 17 closed with a known gap: currency and date formatting live inside <code>app/lib/data.ts</code>, which is why three data functions call <code>getLocale()</code>. That was a tidiness complaint then. Under Cache Components it is a hard blocker, because <strong>a plain <code>use cache</code> function may not read request state</strong>, and <code>getLocale()</code> is request state.</p>
+      <p>Chapter 17 closed with a known gap: currency and date formatting live inside <code>app/lib/data.ts</code>, so three data functions call <code>getLocale()</code>. That was a tidiness complaint then. Here it is a hard blocker, because <strong>a plain <code>use cache</code> scope may not read request state</strong>, and <code>getLocale()</code> is request state.</p>
 
-      <div class="code">
-        <div class="code-head"><span class="path">app/lib/data.ts</span><span class="tag edit">current</span></div>
-        <pre><code>export async function fetchCardData() {
-  <span class="del">const locale = await getLocale();          // blocks "use cache"</span>
-  ...
-  totalPaidInvoices: <span class="del">formatCurrency(data[2][0].paid ?? "0", locale)</span>,
-}</code></pre>
-      </div>
+      <p>Two ways out, and they are not equivalent.</p>
 
-      <p>There are two ways out, and they are not equivalent.</p>
+      <p><strong>Option A, pass the locale in as an argument.</strong> Legal, and the documented pattern for runtime values. It also makes the locale part of the cache key, which means two entries per query holding identical numbers formatted differently.</p>
 
-      <h3>Option A: pass the locale in as an argument</h3>
-      <p>Legal, and the pattern the docs describe for runtime values. The caller reads the locale outside the cached scope and passes it down, where it becomes part of the cache key. It also means <strong>two cache entries for one query</strong>, one per locale, holding identical numbers formatted differently.</p>
-
-      <h3>Option B: return raw numbers, format in the component</h3>
-      <p>The data layer returns what the database returned. The component formats at render time, where it already has a locale. One cache entry serves both locales, the query result stops being locale-shaped, and the Chapter 17 gap closes on its own.</p>
+      <p><strong>Option B, return raw values and format in the component.</strong> One cache entry serves both locales, the query stops being locale-shaped, and the chapter 17 gap closes on its own.</p>
 
       <div class="code">
         <div class="code-head"><span class="path">app/lib/data.ts</span><span class="tag edit">planned</span></div>
-        <pre><code><span class="c">// Raw cents out. No getLocale(), no formatting, so the cache key is
-// the query alone and /en and /ar share one entry.</span>
-export async function fetchCardData() {
-  <span class="add">"use cache";
-  cacheLife("minutes");</span>
+        <pre><code>export async function fetchCardData() {
+  <span class="del">- const locale = await getLocale();      // blocks "use cache"</span>
   ...
   return { numberOfCustomers, numberOfInvoices,
            <span class="add">totalPaid, totalPending</span> };   <span class="c">// numbers, not strings</span>
 }</code></pre>
       </div>
 
-      <p><strong>Take option B.</strong> Formatting is a presentation concern that drifted into the data layer during the course, and this is the forcing function to put it back. Three data functions lose their <code>getLocale()</code> call; the components that render their output gain a <code>formatCurrency(value, locale)</code>.</p>
-
       <div class="note ok">
         <span class="lbl">The transferable idea</span>
-        <p>Anything locale-shaped, user-shaped or request-shaped that you bake into a cached value multiplies your cache entries by the cardinality of that thing. Formatting inside a cached query does not just read badly, it halves the hit rate. This generalises well past i18n: currency, timezone, and per-user labels all behave the same way.</p>
+        <p>Anything locale-shaped, user-shaped or request-shaped baked into a cached value multiplies your cache entries by the cardinality of that thing. Formatting inside a cached query does not just read badly, it halves the hit rate. The same applies to currency, timezone and per-user labels.</p>
       </div>
 
       <div class="note">
         <span class="lbl">One thing that looks like a blocker and is not</span>
-        <p><code>formatDateToLocal</code> calls <code>new Date(dateStr)</code>. The prerender rejects <code>new Date()</code> with no arguments, because it reads the clock. Constructing a Date from a fixed string is deterministic and fine. Likewise the <code>new Date()</code> in <code>createInvoice</code> is inside a Server Action, which only ever runs at request time and is never prerendered.</p>
+        <p><code>formatDateToLocal</code> calls <code>new Date(dateStr)</code>. The prerender rejects <code>new Date()</code> with no arguments because it reads the clock. Constructing a Date from a fixed string is deterministic and fine. Likewise the <code>new Date()</code> in <code>createInvoice</code> sits in a Server Action, which never prerenders.</p>
       </div>
 
       <div class="check">
         <span class="lbl">Checkpoint</span>
-        <span><code>grep -rn "getLocale" app/lib/data.ts</code> returns nothing, and the dashboard still shows Arabic-Indic digits under <code>/ar</code>.</span>
+        <span><code>grep -rn "getLocale" app/lib/data.ts</code> returns nothing, and <code>/ar</code> still shows Arabic-Indic digits.</span>
       </div>
 
       <h4>Commit</h4>
@@ -861,17 +962,17 @@ that call blocks caching outright.
 Return raw values and format in the components, which already have a locale.
 Passing the locale in as an argument would also work, but it becomes part of
 the cache key: one query would hold two entries per locale carrying identical
-numbers. This closes the formatting gap left open in chapter 17 and is worth
+numbers. Closes the formatting gap left open in chapter 17, and is worth
 keeping even if Cache Components were abandoned.</pre>
       </div>
 
-      <h2 id="s4"><span class="step-n">Step 04</span><code>use cache</code> and a deliberate <code>cacheLife</code></h2>
+      <h2 id="s5"><span class="step-n">Step 05</span><code>use cache</code> and a deliberate <code>cacheLife</code></h2>
 
       <div class="files">
         <span class="file">app/lib/data.ts</span>
       </div>
 
-      <p>With the locale gone, the read functions become cacheable. Each gets the directive and an explicit lifetime. The docs recommend always calling <code>cacheLife</code> rather than letting <code>default</code> apply silently, and that matters more once scopes nest.</p>
+      <p>With the locale gone, the read functions become cacheable. Each gets the directive and an explicit lifetime, because leaving it implicit gets hard to reason about as soon as scopes nest.</p>
 
       <div class="table-wrap">
         <table>
@@ -889,9 +990,7 @@ keeping even if Cache Components were abandoned.</pre>
         </table>
       </div>
 
-      <p>The three properties answer three different questions. <code>stale</code> is how long the <em>browser's</em> router reuses what it has without asking. <code>revalidate</code> is how long before the server refreshes in the background while still serving the old value. <code>expire</code> is when the server stops serving the old value at all and the next request waits.</p>
-
-      <p>Proposed assignment, chosen from how often each thing actually changes in this app:</p>
+      <p>The three properties answer three different questions. <code>stale</code> is how long the browser's router reuses what it has without asking. <code>revalidate</code> is how long before the server refreshes in the background while still serving the old value. <code>expire</code> is when the server stops serving the old value and the next request waits.</p>
 
       <div class="table-wrap">
         <table>
@@ -904,19 +1003,18 @@ keeping even if Cache Components were abandoned.</pre>
             <tr><td><code>fetchLatestInvoices</code></td><td><code>minutes</code></td><td>Same, and visibly wrong if stale for long</td></tr>
             <tr><td><code>fetchCustomers</code></td><td><code>hours</code></td><td>Dropdown options for the invoice form</td></tr>
             <tr><td><code>fetchInvoiceById</code>, <code>fetchCustomerById</code></td><td><code>minutes</code></td><td>Edit forms, must not show a stale amount</td></tr>
-            <tr><td><code>fetchFilteredInvoices</code>, <code>fetchFilteredCustomers</code></td><td><code>minutes</code></td><td>Keyed by query and page, so each combination caches separately</td></tr>
           </tbody>
         </table>
       </div>
 
       <div class="note warn">
-        <span class="lbl">Do not cache the search results reflexively</span>
-        <p>The filtered queries take <code>query</code> and <code>currentPage</code>, and both become part of the cache key. A search box that fires per keystroke will mint a cache entry per prefix the user typed. It is bounded in a demo and unbounded in production. If the entry count looks silly, the right answer is to leave these two uncached and let them stream, which is what the Suspense boundary in step 06 is for.</p>
+        <span class="lbl">Do not cache the search queries reflexively</span>
+        <p><code>fetchFilteredInvoices</code> and <code>fetchFilteredCustomers</code> take <code>query</code> and <code>currentPage</code>, and both land in the cache key. A search box firing per keystroke mints an entry per prefix typed. Bounded in a demo, unbounded in production. If the entry count looks silly, leave these two uncached and let them stream, which is what step 07's boundary is for.</p>
       </div>
 
       <div class="check">
         <span class="lbl">Checkpoint</span>
-        <span>Hit <code>/en/dashboard</code> twice. The second render should not log a second round of Postgres queries for the cached functions.</span>
+        <span>Load <code>/en/dashboard</code> twice. The second render logs no second round of Postgres queries for the cached functions.</span>
       </div>
 
       <h4>Commit</h4>
@@ -933,33 +1031,14 @@ instance teardown. Durable storage needs "use cache: remote" and a cache
 handler this project does not have.</pre>
       </div>
 
-      <h2 id="s5"><span class="step-n">Step 05</span>Tags, and telling the two invalidation APIs apart</h2>
+      <h2 id="s6"><span class="step-n">Step 06</span>Tags, and telling the invalidation APIs apart</h2>
 
       <div class="files">
         <span class="file">app/lib/data.ts</span>
         <span class="file">app/lib/actions.ts</span>
       </div>
 
-      <p>The app currently invalidates with six calls that all look like this:</p>
-
-      <div class="code">
-        <div class="code-head"><span class="path">app/lib/actions.ts</span><span class="tag edit">current</span></div>
-        <pre><code>revalidatePath("/[locale]/dashboard/invoices", "page");</code></pre>
-      </div>
-
-      <p>That works and keeps working. It is also a blunt instrument: it names a route, so editing one invoice throws away the cached data for the customers page too if they happen to share a segment, and it says nothing about <em>what</em> changed. Tags name the data instead.</p>
-
-      <div class="code">
-        <div class="code-head"><span class="path">app/lib/data.ts</span><span class="tag edit">planned</span></div>
-        <pre><code>export async function fetchFilteredInvoices(query: string, page: number) {
-  "use cache";
-  <span class="add">cacheTag("invoices");</span>
-  cacheLife("minutes");
-  ...
-}</code></pre>
-      </div>
-
-      <p>Then the choice of invalidation API, which is the part worth learning properly:</p>
+      <p>The app invalidates with six calls that all look like <code>revalidatePath("/[locale]/dashboard/invoices", "page")</code>. That works and keeps working. It is also blunt: it names a route rather than the data, so it discards more than it needs to and says nothing about what changed. Tags name the data.</p>
 
       <div class="table-wrap">
         <table>
@@ -986,18 +1065,11 @@ handler this project does not have.</pre>
         </table>
       </div>
 
-      <p>Every invalidation in this app happens right after the user edited something, so all six become <code>updateTag</code>. Read-your-own-writes is exactly the case it exists for: with <code>revalidateTag</code> the user would submit the edit form, get redirected, and see their old value staring back while the refresh happened behind them.</p>
-
-      <div class="code">
-        <div class="code-head"><span class="path">app/lib/actions.ts</span><span class="tag edit">planned</span></div>
-        <pre><code><span class="del">- revalidatePath("/[locale]/dashboard/invoices", "page");</span>
-<span class="add">+ updateTag("invoices");</span>
-  redirect({ href: "/dashboard/invoices", locale: await getLocale() });</code></pre>
-      </div>
+      <p>Every invalidation here follows a user edit, so all six become <code>updateTag</code>. Read-your-own-writes is exactly its case: with <code>revalidateTag</code> the user submits the edit, gets redirected, and sees their old value while the refresh happens behind them.</p>
 
       <div class="note warn">
         <span class="lbl">Tags are stored in plain text</span>
-        <p>Cache keys and tag names are not hashed. A cached function's arguments are serialised straight into its key, and <code>cacheTag</code> values are stored as written. Tag on stable identifiers. Never put an email, a token or anything personal in a tag or in a cached function's arguments.</p>
+        <p>Cache keys and tag names are not hashed. A cached function's arguments serialise straight into its key, and <code>cacheTag</code> values are stored as written. Tag on stable identifiers. Never put an email, a token or anything personal in a tag or a cached function's arguments.</p>
       </div>
 
       <div class="check">
@@ -1015,32 +1087,18 @@ than they had to and said nothing about what had changed.
 
 Every invalidation here follows a user edit, so all six become updateTag
 rather than revalidateTag: updateTag makes the next request wait for fresh
-data, which is what read-your-own-writes needs. revalidateTag would serve the
-stale value back to the user who just changed it.
-
-Tags are stored in plain text, so they key on stable identifiers only.</pre>
+data, which is what read-your-own-writes needs. revalidateTag would serve
+the stale value back to the user who just changed it.</pre>
       </div>
 
-      <h2 id="s6"><span class="step-n">Step 06</span>Push <code>searchParams</code> behind Suspense</h2>
+      <h2 id="s7"><span class="step-n">Step 07</span>Push <code>searchParams</code> behind Suspense</h2>
 
       <div class="files">
         <span class="file">app/[locale]/dashboard/invoices/page.tsx</span>
         <span class="file">app/[locale]/dashboard/customers/page.tsx</span>
       </div>
 
-      <p>Both list pages await <code>searchParams</code> at the top of the component. Search params are only knowable at request time, so awaiting them there means the entire page waits, including the heading and the search box that do not depend on them at all.</p>
-
-      <div class="code">
-        <div class="code-head"><span class="path">app/[locale]/dashboard/invoices/page.tsx</span><span class="tag edit">current</span></div>
-        <pre><code>export default async function Page(props: {...}) {
-  <span class="del">const searchParams = await props.searchParams;   // whole page waits</span>
-  const query = searchParams?.query || "";
-  const totalPages = await fetchInvoicesPages(query);
-  ...
-}</code></pre>
-      </div>
-
-      <p>The fix is to stop awaiting and start passing. The promise goes down into a child that sits inside a boundary, and the <code>await</code> happens there:</p>
+      <p>Both list pages await <code>searchParams</code> at the top of the component, so the heading and the search box wait on a value neither uses. Stop awaiting and start passing: the promise goes into a child inside a boundary, and the <code>await</code> happens there.</p>
 
       <div class="code">
         <div class="code-head"><span class="path">app/[locale]/dashboard/invoices/page.tsx</span><span class="tag edit">planned</span></div>
@@ -1064,16 +1122,9 @@ Tags are stored in plain text, so they key on stable identifiers only.</pre>
 }</span></code></pre>
       </div>
 
-      <p>The same rule applies on the client. <code>useSearchParams</code> <em>always</em> needs a boundary, because its value never exists at build time. This app calls it in four client components: <code>search.tsx</code>, <code>pagination.tsx</code>, <code>login-form.tsx</code> and <code>locale-switcher.tsx</code>. Each will need a boundary or will need the read pushed into a smaller leaf, and <code>login-form.tsx</code> is the one that matters, because it is what keeps the canary route from going fully static.</p>
-
-      <div class="note">
-        <span class="lbl">Push the read down, do not wrap the world</span>
-        <p>The temptation is to wrap the largest component in <code>&lt;Suspense&gt;</code> and move on. That works and throws away most of the benefit, because everything inside the boundary leaves the shell. The useful version is to move the read into the smallest component that genuinely needs it, so the boundary stays small.</p>
-      </div>
-
       <div class="check">
         <span class="lbl">Checkpoint</span>
-        <span><code>/en/dashboard/invoices</code> appears as <code>◐</code> (partially prerendered) rather than <code>ƒ</code> in the build output.</span>
+        <span><code>/en/dashboard/invoices</code> appears as <code>◐</code> rather than <code>ƒ</code>.</span>
       </div>
 
       <h4>Commit</h4>
@@ -1083,34 +1134,17 @@ Tags are stored in plain text, so they key on stable identifiers only.</pre>
 Both list pages awaited searchParams at the top of the component, so the
 heading and the search box waited on a value neither of them uses. Pass the
 promise into a child inside a Suspense boundary and await it there, leaving
-the static parts of the page in the shell.
-
-Client components reading useSearchParams get the same treatment, since that
-hook can never resolve at build time. The read is pushed into the smallest
-component that needs it rather than wrapping a large one, which would put
-everything inside it back outside the shell.</pre>
+the static parts of the page in the shell.</pre>
       </div>
 
-      <h2 id="s7"><span class="step-n">Step 07</span>The session read, and <code>use cache: private</code></h2>
+      <h2 id="s8"><span class="step-n">Step 08</span>The session read</h2>
 
       <div class="files">
         <span class="file">app/ui/dashboard/sidenav.tsx</span>
         <span class="file">app/[locale]/dashboard/layout.tsx</span>
       </div>
 
-      <p>This is where a login-walled app differs from the blog examples in the docs. A session read is a cookie read, so it can never be in the static shell. It always streams. The question is only how much of the page it drags with it.</p>
-
-      <p><code>SideNav</code> is rendered by the dashboard layout and awaits <code>getLocale()</code> and <code>getTranslations()</code> at its top level. A top-level await in a layout holds the whole segment, <code>{children}</code> included, behind that request. Whatever the page below was going to prerender, it now cannot.</p>
-
-      <div class="code">
-        <div class="code-head"><span class="path">app/[locale]/dashboard/layout.tsx</span><span class="tag edit">planned</span></div>
-        <pre><code>&lt;div className="w-full flex-none md:w-64"&gt;
-  <span class="add">&lt;Suspense fallback={&lt;SideNavSkeleton /&gt;}&gt;</span>
-    &lt;SideNav /&gt;
-  <span class="add">&lt;/Suspense&gt;</span>
-&lt;/div&gt;
-&lt;div className="grow p-6 md:overflow-y-auto md:p-12"&gt;{children}&lt;/div&gt;</code></pre>
-      </div>
+      <p>A session read is a cookie read, so it can never be in the static shell. It always streams. The only question is how much of the page it drags with it.</p>
 
       <p>For anything derived from the session there is a third directive worth knowing:</p>
 
@@ -1130,7 +1164,7 @@ everything inside it back outside the shell.</pre>
         </table>
       </div>
 
-      <p>The shape the docs recommend, and the one to follow here: resolve the user inside a private scope, then pass only the <em>id</em> into a plain cached function. The session read stays private and browser-only; the data it points at gets cached on the server under a key that is just an id.</p>
+      <p>The documented shape: resolve the user inside a private scope, then pass only the <em>id</em> into a plain cached function. The session stays browser-only; the data it points at caches on the server under a key that is just an id.</p>
 
       <div class="code">
         <div class="code-head"><span class="path">the pattern</span><span class="tag">reference</span></div>
@@ -1139,11 +1173,6 @@ everything inside it back outside the shell.</pre>
   const { userId } = await getSession();
   if (!userId) redirect("/login");   <span class="c">// throws, so never cached</span>
   return { id: userId };
-}
-
-export async function getNotes() {
-  const user = await getCurrentUser();
-  return getNotesByUserId(user.id);  <span class="c">// id only, not the session</span>
 }
 
 async function getNotesByUserId(userId: string) {
@@ -1156,32 +1185,31 @@ async function getNotesByUserId(userId: string) {
 
       <div class="note">
         <span class="lbl">Keep the inner function unexported</span>
-        <p><code>getNotesByUserId</code> is not exported on purpose. If it were, any caller could pass someone else's id and read their data. Resolving the user inside the exported wrapper is the thing that makes the id safe to trust.</p>
+        <p><code>getNotesByUserId</code> is unexported on purpose. If it were exported, any caller could pass someone else's id and read their data. Resolving the user inside the exported wrapper is what makes the id safe to trust.</p>
       </div>
 
-      <p>This app does not currently fetch anything per-user (every invoice belongs to the one demo account), so step 07 is mostly about the <code>SideNav</code> boundary. The private-cache pattern is written down here because it is the piece that generalises, and because the next app will need it.</p>
+      <p>This app fetches nothing per-user, since every invoice belongs to the one demo account, so the practical work here is the <code>SideNav</code> boundary. The private-cache pattern is recorded because it is the piece that generalises.</p>
 
       <div class="check">
         <span class="lbl">Checkpoint</span>
-        <span>Logged out, <code>/en/dashboard</code> still redirects to <code>/en/login</code>. The two bypasses from Chapter 17 stay fixed. Re-test this against a running server, not by reading <code>proxy.ts</code>.</span>
+        <span>Logged out, <code>/en/dashboard</code> still redirects to <code>/en/login</code>. Test against a running server, not by reading <code>proxy.ts</code>.</span>
       </div>
 
       <h4>Commit</h4>
       <div class="commit">
-        <pre>perf(dashboard): stream the sidenav behind a suspense boundary
+        <pre>perf(dashboard): stream the sidenav session read behind a boundary
 
-SideNav awaits getLocale() and getTranslations() at its top level, and a
-top-level await in a layout holds the whole segment behind that request,
-{children} included. Every page under the dashboard lost its shell to it.
+A top-level await in a layout holds the whole segment behind that request,
+{children} included, so every page under the dashboard lost its shell to the
+sidebar's session and locale reads.
 
-Wrap it in Suspense with a skeleton so the layout frame and the page below
-prerender while the nav streams. Verified logged out against a running
-server, since both auth bypasses in chapter 17 passed tsc and the build.</pre>
+Verified logged out against a running server, since both auth bypasses in
+chapter 17 passed tsc and the build while still being broken.</pre>
       </div>
 
-      <h2 id="s8"><span class="step-n">Step 08</span>Measure it, or the chapter did not happen</h2>
+      <h2 id="s9"><span class="step-n">Step 09</span>Measure it, or the chapter did not happen</h2>
 
-      <p>The deliverable is a diff in the build output, and it needs to be recorded rather than described.</p>
+      <p>The deliverable is a diff in the build output, recorded rather than described.</p>
 
       <div class="table-wrap">
         <table>
@@ -1198,14 +1226,14 @@ server, since both auth bypasses in chapter 17 passed tsc and the build.</pre>
 
       <p>Three things to capture, in this order:</p>
       <ol class="body-list">
-        <li>The route table before and after, verbatim, in the chapter's build record.</li>
-        <li>The count of routes with a non-empty shell. This is the honest headline number.</li>
-        <li>Whether any route still needs <code>instant = false</code>, and why. A route that had to opt out is a finding, not a failure, but it has to be named.</li>
+        <li>The route table before and after, verbatim.</li>
+        <li>The count of routes with a non-empty shell. The honest headline number.</li>
+        <li>Any route still needing <code>instant = false</code>, and why. A route that had to opt out is a finding, not a failure, but it has to be named.</li>
       </ol>
 
       <div class="note warn">
         <span class="lbl">What this step is not</span>
-        <p>It is not an LCP number. Measuring real-world load time needs a deployed build, a throttled connection, and a page a crawler or a cold visitor can actually reach. That is its own chapter, and pretending a local build table is a performance result would be the easiest way to put a number on a CV that does not survive being asked about.</p>
+        <p>It is not an LCP number. Measuring real load time needs a deployed build, a throttled connection, and a page a cold visitor can reach. That is its own chapter, and calling a local build table a performance result is the fastest way to put a number on a CV that does not survive being asked about.</p>
       </div>
 
       <h4>Commit</h4>
@@ -1214,28 +1242,24 @@ server, since both auth bypasses in chapter 17 passed tsc and the build.</pre>
 
 Replace the plan with what actually happened: the before and after route
 tables verbatim, the count of routes that ended up with a non-empty static
-shell, and any route still carrying instant = false along with the reason.
-
-Records what the plan got wrong, in the same shape as chapter 17.</pre>
+shell, and any route still carrying instant = false along with the reason.</pre>
       </div>
 
       <h2 id="escape">The escape hatch, and when using it is correct</h2>
-
-      <p>Any segment can decline validation:</p>
 
       <div class="code">
         <div class="code-head"><span class="path">any page, layout or default</span><span class="tag">reference</span></div>
         <pre><code>export const instant = false;</code></pre>
       </div>
 
-      <p>It marks a segment as allowed to block. Three things it does <strong>not</strong> do, all of which are easy to assume:</p>
+      <p>It marks a segment as allowed to block. Three things it does <strong>not</strong> do:</p>
       <ul>
-        <li>It does not force the route to be dynamic. A route that can still prerender a shell will still ship one.</li>
-        <li>It does not silence synchronous IO errors. <code>new Date()</code>, <code>Math.random()</code> and <code>crypto.randomUUID()</code> during prerender still fail the build, opted out or not.</li>
-        <li>It does not hide anything at runtime. An offending route returns 200 with correct HTML in dev either way; validation insights only appear in the dev overlay and the dev-server log, never in the response.</li>
+        <li>It does not force the route dynamic. A route that can still prerender a shell will ship one.</li>
+        <li>It does not silence synchronous IO errors. <code>new Date()</code>, <code>Math.random()</code> and <code>crypto.randomUUID()</code> still fail the build, opted out or not.</li>
+        <li>It does not change runtime behaviour. An offending route returns 200 with correct HTML in dev either way; insights appear only in the overlay and the dev-server log.</li>
       </ul>
 
-      <p>Using it on a route whose blocker is understood and deliberately deferred is fine. Using it to make the build go green without reading the error is how the whole feature gets wasted.</p>
+      <p>Using it on a blocker you understand and are deferring is fine. Using it to turn the build green without reading the error wastes the entire feature.</p>
 
       <h2 id="risks">What could go wrong</h2>
 
@@ -1246,24 +1270,24 @@ Records what the plan got wrong, in the same shape as chapter 17.</pre>
           </thead>
           <tbody>
             <tr>
-              <td>next-intl's provider cannot prerender at all</td>
-              <td>Step 02 bisection finds no combination that clears the error</td>
-              <td>Write it up as the finding, opt the root layout out, and keep the rest of the chapter. A negative result about a library at a specific version is worth publishing.</td>
-            </tr>
-            <tr>
               <td>Cache entries explode on the search routes</td>
-              <td>Distinct keys growing with every keystroke</td>
-              <td>Leave the filtered queries uncached. The Suspense boundary already covers them.</td>
+              <td>Distinct keys growing per keystroke</td>
+              <td>Leave the filtered queries uncached. Step 07's boundary already covers them.</td>
             </tr>
             <tr>
               <td>UI state persists where it used to reset</td>
-              <td>A dropdown stays open after navigating away and back; a submitted form still shows its old success message</td>
-              <td>Expected. Cache Components keeps routes mounted with React <code>&lt;Activity&gt;</code> in hidden mode instead of unmounting them. Reset explicitly, or derive the state from the URL.</td>
+              <td>A dropdown stays open after navigating away and back; a submitted form still shows its old message</td>
+              <td>Expected. Cache Components keeps routes mounted with React <code>&lt;Activity&gt;</code> in hidden mode. Reset explicitly, or derive from the URL.</td>
             </tr>
             <tr>
               <td>The auth guard regresses</td>
               <td>Nothing. It will look fine.</td>
-              <td>This is the Chapter 17 lesson. Both bypasses passed <code>tsc</code>, passed the build and read as correct. Test logged out against a running server after every step that touches the layout or the proxy.</td>
+              <td>The chapter 17 lesson. Both bypasses passed <code>tsc</code> and the build. Test logged out against a running server after every step touching the layout or the proxy.</td>
+            </tr>
+            <tr>
+              <td>Another blocker class appears that this taxonomy does not cover</td>
+              <td>An error whose fix is not in the table</td>
+              <td>Add the row before fixing it. The table is the deliverable as much as the code is.</td>
             </tr>
           </tbody>
         </table>
@@ -1271,7 +1295,7 @@ Records what the plan got wrong, in the same shape as chapter 17.</pre>
 
       <h2 id="commits">Commit discipline</h2>
 
-      <p>Every step above ends with its own commit message, written out in full at the point you would use it. The rule for this chapter is <strong>one step, one commit</strong>, and the trigger is the checkpoint: if the checkpoint passes, commit before starting the next step.</p>
+      <p>Every step ends with its own commit message, written out in full at the point you would use it. One step, one commit, triggered by the checkpoint passing.</p>
 
       <div class="table-wrap">
         <table>
@@ -1280,40 +1304,46 @@ Records what the plan got wrong, in the same shape as chapter 17.</pre>
           </thead>
           <tbody>
             <tr><td>01</td><td><code>build(cache):</code> enable cache components and enumerate locale root params</td></tr>
-            <tr><td>02</td><td><code>fix(i18n):</code> make the message config prerenderable</td></tr>
-            <tr><td>03</td><td><code>refactor(data):</code> move currency and date formatting out of the data layer</td></tr>
-            <tr><td>04</td><td><code>perf(data):</code> cache read queries with use cache and explicit cache lifetimes</td></tr>
-            <tr><td>05</td><td><code>refactor(actions):</code> replace revalidatePath with tagged cache invalidation</td></tr>
-            <tr><td>06</td><td><code>perf(invoices,customers):</code> stream search results behind suspense boundaries</td></tr>
-            <tr><td>07</td><td><code>perf(dashboard):</code> stream the sidenav behind a suspense boundary</td></tr>
-            <tr><td>08</td><td><code>docs(ch18):</code> rewrite the chapter as a build record</td></tr>
+            <tr><td>02</td><td><code>fix(i18n):</code> resolve the locale from root params instead of the request</td></tr>
+            <tr><td>03</td><td><code>perf(ui):</code> stream url-dependent client components behind suspense</td></tr>
+            <tr><td>04</td><td><code>refactor(data):</code> move currency and date formatting out of the data layer</td></tr>
+            <tr><td>05</td><td><code>perf(data):</code> cache read queries with use cache and explicit cache lifetimes</td></tr>
+            <tr><td>06</td><td><code>refactor(actions):</code> replace revalidatePath with tagged cache invalidation</td></tr>
+            <tr><td>07</td><td><code>perf(invoices,customers):</code> stream search results behind suspense boundaries</td></tr>
+            <tr><td>08</td><td><code>perf(dashboard):</code> stream the sidenav session read behind a boundary</td></tr>
+            <tr><td>09</td><td><code>docs(ch18):</code> rewrite the chapter as a build record</td></tr>
           </tbody>
         </table>
       </div>
 
-      <div class="note">
-        <span class="lbl">Why eight and not one</span>
-        <p>Chapter 17 shipped as two commits because none of it was committed incrementally, and the write-up had to admit it: every RTL pass, translation and typed-href fix flattened into a single 45-file diff that nobody could review. This chapter is committed as it goes so that does not happen again.</p>
-        <p>Step 03 earns its own commit twice over. It touches the data layer and four components, and it is the one change here worth keeping even if Cache Components were abandoned entirely, so it should be revertible without taking the caching work with it.</p>
-      </div>
+      <h2 id="wrong">What the first draft got wrong</h2>
 
-      <div class="note warn">
-        <span class="lbl">Steps that may not produce a commit</span>
-        <p>Step 02 is a bisection, so it may end in <code>build(cache): opt the root layout out of instant validation</code> instead of a fix. Step 04 may end with the filtered queries deliberately left uncached. Either way the commit body records the decision and the reason, because a step that changed nothing still produced a finding.</p>
+      <div class="verdict">
+        <h3>Four mistakes, one of them structural</h3>
+
+        <p><strong>It shipped code that did not compile.</strong> Step 02's probe imported <code>getFormats</code> from <code>next-intl/server</code>. That function exists in the package, but only as an internal module: the public barrel exports <code>getFormatter</code>, not <code>getFormats</code>. The plan was written from reading next-intl's source without checking what the entrypoint actually re-exports. One <code>node -e "Object.keys(require('next-intl/server'))"</code> would have caught it.</p>
+
+        <p><strong>It recommended the deprecated API.</strong> The whole step 02 bisection was built around making <code>setRequestLocale</code> work under prerendering, and its worst-case branch was "spread it to every page". The installed package marks both it and <code>requestLocale</code> deprecated, pointing at <code>next/root-params</code>, which is a one-file change that removes the problem instead of distributing it. The deprecation notice was visible in the editor the whole time and got read as noise.</p>
+
+        <p><strong>It assumed the first error was the only error.</strong> Step 02 was scoped to two files. Clearing it actually took four fixes across three concerns, because the build only ever names the first blocker per route. A step scoped by file list is a guess; a step scoped by <em>error class</em> is checkable.</p>
+
+        <p><strong>And the structural one: it ordered steps by subject, not by blast radius.</strong> Client-hook boundaries were step 06 because they read like a rendering topic. But <code>LocaleSwitcher</code> renders in the sidebar and on both public pages, so it alone blocked all sixteen remaining paths. A step-02 checkpoint that depended on step 06 could never pass. Ordering by how many routes a fix unblocks, rather than by which part of the app it belongs to, is the correction this draft is built on.</p>
+
+        <p>The through-line is the same one chapter 17 ended on, in a new costume: <strong>the plan was written by reading, and reality was found by running.</strong> Chapter 17 learned that about auth bypasses. This chapter learned it about the plan itself.</p>
       </div>
 
       <h2 id="honest">What this chapter isn't</h2>
 
       <div class="verdict">
         <h3>A static shell on a login wall has a ceiling</h3>
-        <p>Almost everything in this app sits behind authentication. A session read cannot be prerendered, so on the dashboard routes the shell is the chrome: the sidebar frame, the headings, the skeletons. The numbers, the tables and the charts still cost a request. That is a genuine improvement to perceived load, and it is not the same as a static site.</p>
-        <p>The routes that stand to gain most are the two nobody looks at: the login page and the home page. Which is a fair description of the whole app's SEO story, and was already said plainly in Chapter 17.</p>
-        <p>What makes this chapter worth doing anyway is that the model is the direction the framework has committed to, and it is genuinely inverted from what the course taught. Learning it on eleven routes with a bilingual layer and an auth guard already in place is a better exercise than learning it on a blog, because the awkward parts, a provider in the root layout, a session read in a shared sidebar, formatting that leaked into the data layer, are the parts a real app has and a tutorial does not.</p>
-        <p>And the honest headline is a build-output diff, not a performance claim. The performance claim needs a deployed build and a throttled measurement, and that is the next chapter.</p>
+        <p>Almost everything here sits behind authentication. A session read cannot be prerendered, so on the dashboard routes the shell is the chrome: the sidebar frame, the headings, the skeletons. The numbers, tables and charts still cost a request. That is a real improvement to perceived load, and it is not a static site.</p>
+        <p>The routes that gain most are the two nobody looks at: login and home. Which is a fair description of this app's whole SEO story, already said plainly in chapter 17.</p>
+        <p>What makes it worth doing is that the model is where the framework has committed, and it is genuinely inverted from what the course taught. Learning it on eleven routes with a bilingual layer and an auth guard already in place beats learning it on a blog, because the awkward parts, a provider in the root layout, a switcher in the shared chrome, formatting that leaked into the data layer, are what a real app has and a tutorial does not.</p>
+        <p>And the headline is a build-output diff, not a performance claim. The performance claim needs a deployed build and a throttled measurement. That is the next chapter.</p>
       </div>
 
       <h3>Next chapter</h3>
-      <p>Measurement. A deployed build, a cold cache, a throttled connection, and an actual number, so that Chapter 18's route table can be checked against something a user would feel.</p>
+      <p>Measurement. A deployed build, a cold cache, a throttled connection, and a real number, so this chapter's route table can be checked against something a user would actually feel.</p>
 
     </div>
   </main>

@@ -1,7 +1,8 @@
 import { hasLocale } from "next-intl";
 import { getRequestConfig } from "next-intl/server";
-import { routing } from "./routing";
+import { locale as rootLocale } from "next/root-params";
 import { cacheLife } from "next/cache";
+import { routing } from "./routing";
 
 async function loadMessages(locale: string) {
   "use cache";
@@ -10,11 +11,6 @@ async function loadMessages(locale: string) {
   return (await import(`../messages/${locale}.json`)).default;
 }
 
-// next-intl only needs `now` for format.relativeTime, which this app never
-// calls. A live new Date() is synchronous IO the prerender rejects outright
-// (no Suspense or instant = false escape hatch), so cache a fixed build-time
-// value instead -- getConfigNow() then resolves it from cached config rather
-// than the root layout computing a live one on every render.
 async function getBuildTime() {
   "use cache";
   cacheLife("max");
@@ -22,9 +18,8 @@ async function getBuildTime() {
   return new Date();
 }
 
-export default getRequestConfig(async ({ requestLocale }) => {
-  const requested = await requestLocale;
-
+export default getRequestConfig(async () => {
+  const requested = await rootLocale();
   const locale = hasLocale(routing.locales, requested)
     ? requested
     : routing.defaultLocale;

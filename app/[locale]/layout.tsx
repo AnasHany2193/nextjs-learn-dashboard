@@ -5,12 +5,7 @@ import { notFound } from "next/navigation";
 
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 
-import {
-  getMessages,
-  getTimeZone,
-  getTranslations,
-  setRequestLocale,
-} from "next-intl/server";
+import { getMessages, getTimeZone, getTranslations } from "next-intl/server";
 
 import { bodyFont } from "@/app/ui/fonts";
 import { routing } from "@/i18n/routing";
@@ -56,9 +51,6 @@ export default async function RootLayout({
 }) {
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
-
-  // opts this subtree back into static rendering
-  setRequestLocale(locale);
 
   const dir = locale === "ar" ? "rtl" : "ltr";
 

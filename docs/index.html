@@ -651,7 +651,7 @@
           <span class="status planned">Plan</span>
         </div>
         <h2>Cache Components and the static shell</h2>
-        <p>Eleven of eleven routes are server-rendered on demand, and the only static thing in the build output is the 404 page. Next 16 inverts the caching model: nothing is cached unless you say so, and the build refuses to pass until every uncached read is either wrapped in <code>use cache</code> or pushed behind a Suspense boundary. Includes the reconnaissance run that found one component in the root layout blocking all eighteen prerender paths at once.</p>
+        <p>Eleven of eleven routes are server-rendered on demand, and the only static thing in the build output is the 404 page. Next 16 inverts the caching model: nothing is cached unless you say so, and the build refuses to pass until every uncached read is either cached or pushed behind a Suspense boundary. Rewritten mid-build after the first plan stalled on its own step 02, because prerender blockers turn out to be a stack rather than a list, and the build only ever names the first one.</p>
       </a>
     </li>
   </ul>

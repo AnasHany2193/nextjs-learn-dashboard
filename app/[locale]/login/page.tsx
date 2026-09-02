@@ -1,18 +1,11 @@
 import { Suspense } from "react";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import AcmeLogo from "@/app/ui/acme-logo";
 import LoginForm from "@/app/ui/login-form";
 import LocaleSwitcher from "@/app/ui/locale-switcher";
 
-export default async function LoginPage({
-  params,
-}: {
-  params: Promise<{ locale: string }>;
-}) {
-  const { locale } = await params;
-  setRequestLocale(locale);
-
+export default async function LoginPage() {
   const t = await getTranslations("Login");
 
   return (

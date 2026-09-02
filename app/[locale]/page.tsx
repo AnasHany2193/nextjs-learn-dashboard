@@ -1,12 +1,16 @@
-import AcmeLogo from "@/app/ui/acme-logo";
-import { ArrowRightIcon } from "@heroicons/react/24/outline";
-import Link from "next/link";
-
-import styles from "@/app/ui/home.module.css";
-import { lusitana } from "./ui/fonts";
+import NextLink from "next/link";
 import Image from "next/image";
+import { getTranslations } from "next-intl/server";
+import { ArrowRightIcon } from "@heroicons/react/24/outline";
 
-export default function Page() {
+import { Link } from "@/i18n/navigation";
+import { lusitana } from "@/app/ui/fonts";
+import AcmeLogo from "@/app/ui/acme-logo";
+import styles from "@/app/ui/home.module.css";
+
+export default async function Page() {
+  const t = await getTranslations("Home");
+
   return (
     <main className="flex min-h-screen flex-col p-6">
       <div className="flex h-20 shrink-0 items-end rounded-lg bg-blue-500 p-4 md:h-52">
@@ -19,17 +23,22 @@ export default function Page() {
           <p
             className={`${lusitana.className} text-xl text-gray-800 md:text-3xl md:leading-normal`}
           >
-            <strong>Welcome to Acme.</strong> This is the example for the{" "}
-            <Link href="https://nextjs.org/learn/" className="text-blue-500">
-              Next.js Learn Course
-            </Link>
-            , brought to you by Vercel.
+            <strong>{t("welcome")}</strong> {t("intro")}{" "}
+            {/* External link -- no locale to carry, plain next/link is correct */}
+            <NextLink
+              href="https://nextjs.org/learn/"
+              className="text-blue-500"
+            >
+              {t("courseLink")}
+            </NextLink>
+            {t("broughtToYou")}
           </p>
           <Link
             href="/login"
             className="flex items-center gap-5 self-start rounded-lg bg-blue-500 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-400 md:text-base"
           >
-            <span>Log in</span> <ArrowRightIcon className="w-5 md:w-6" />
+            <span>{t("login")}</span>{" "}
+            <ArrowRightIcon className="w-5 md:w-6 rtl:rotate-180" />
           </Link>
         </div>
         <div className="flex items-center justify-center p-6 md:w-3/5 md:px-28 md:py-12">
@@ -40,7 +49,7 @@ export default function Page() {
             height={760}
             loading="eager"
             className="hidden md:block"
-            alt="Screenshots of the dashboard project showing desktop version"
+            alt={t("heroDesktopAlt")}
           />
           <Image
             src="/hero-mobile.png"
@@ -48,7 +57,7 @@ export default function Page() {
             height={620}
             loading="eager"
             className="block md:hidden"
-            alt="Screenshots of the dashboard project showing mobile version"
+            alt={t("heroMobileAlt")}
           />
         </div>
       </div>

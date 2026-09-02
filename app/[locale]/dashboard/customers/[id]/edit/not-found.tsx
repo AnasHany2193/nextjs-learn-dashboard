@@ -1,17 +1,20 @@
-import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { FaceFrownIcon } from "@heroicons/react/24/outline";
 
 export default function NotFound() {
+  const t = useTranslations("Customers");
+
   return (
     <main className="flex h-full flex-col items-center justify-center gap-2">
       <FaceFrownIcon className="w-10 text-gray-400" />
-      <h2 className="text-xl font-semibold">404 Not Found</h2>
-      <p>Could not find the requested customer.</p>
+      <h2 className="text-xl font-semibold">{t("notFoundHeading")}</h2>
+      <p>{t("notFound")}</p>
       <Link
         href="/dashboard/customers"
         className="mt-4 rounded-md bg-blue-500 px-4 py-2 text-sm text-white transition-colors hover:bg-blue-400"
       >
-        Go Back
+        {t("goBack")}
       </Link>
     </main>
   );

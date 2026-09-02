@@ -1,4 +1,5 @@
 import postgres from "postgres";
+import { getLocale } from "next-intl/server";
 import {
   Customer,
   CustomerField,
@@ -35,6 +36,7 @@ export async function fetchRevenue() {
 
 export async function fetchLatestInvoices() {
   try {
+    const locale = await getLocale();
     const data = await sql<LatestInvoiceRaw[]>`
       SELECT invoices.amount, customers.name, customers.image_url, customers.email, invoices.id
       FROM invoices
@@ -44,7 +46,7 @@ export async function fetchLatestInvoices() {
 
     const latestInvoices = data.map((invoice) => ({
       ...invoice,
-      amount: formatCurrency(invoice.amount),
+      amount: formatCurrency(invoice.amount, locale),
     }));
     return latestInvoices;
   } catch (error) {
@@ -55,6 +57,8 @@ export async function fetchLatestInvoices() {
 
 export async function fetchCardData() {
   try {
+    const locale = await getLocale();
+
     // You can probably combine these into a single SQL query
     // However, we are intentionally splitting them to demonstrate
     // how to initialize multiple queries in parallel with JS.
@@ -73,8 +77,11 @@ export async function fetchCardData() {
 
     const numberOfInvoices = Number(data[0][0].count ?? "0");
     const numberOfCustomers = Number(data[1][0].count ?? "0");
-    const totalPaidInvoices = formatCurrency(data[2][0].paid ?? "0");
-    const totalPendingInvoices = formatCurrency(data[2][0].pending ?? "0");
+    const totalPaidInvoices = formatCurrency(data[2][0].paid ?? "0", locale);
+    const totalPendingInvoices = formatCurrency(
+      data[2][0].pending ?? "0",
+      locale,
+    );
 
     return {
       numberOfCustomers,
@@ -195,6 +202,7 @@ export async function fetchFilteredCustomers(
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
   try {
+    const locale = await getLocale();
     const data = await sql<CustomersTableType[]>`
 		SELECT
 		  customers.id,
@@ -216,8 +224,8 @@ export async function fetchFilteredCustomers(
 
     const customers = data.map((customer) => ({
       ...customer,
-      total_pending: formatCurrency(customer.total_pending),
-      total_paid: formatCurrency(customer.total_paid),
+      total_pending: formatCurrency(customer.total_pending, locale),
+      total_paid: formatCurrency(customer.total_paid, locale),
     }));
 
     return customers;

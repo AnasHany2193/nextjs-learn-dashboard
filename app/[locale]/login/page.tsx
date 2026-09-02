@@ -1,9 +1,12 @@
 import { Suspense } from "react";
+import { getTranslations } from "next-intl/server";
 
 import AcmeLogo from "@/app/ui/acme-logo";
 import LoginForm from "@/app/ui/login-form";
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const t = await getTranslations("Login");
+
   return (
     <main className="flex items-center justify-center md:h-screen">
       <div className="relative mx-auto flex w-full max-w-[400px] flex-col space-y-2.5 p-4 md:-mt-32">
@@ -17,7 +20,7 @@ export default function LoginPage() {
         </Suspense>
 
         <div className="rounded-md bg-blue-50 p-4 text-sm text-blue-900">
-          <p className="font-medium">Demo account</p>
+          <p className="font-medium">{t("demoAccount")}</p>
           <p className="mt-1">user@nextmail.com &middot; 123456</p>
         </div>
       </div>

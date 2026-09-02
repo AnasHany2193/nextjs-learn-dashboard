@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import Form from "@/app/ui/customers/edit-form";
 import Breadcrumbs from "@/app/ui/breadcrumbs";
 import { fetchCustomerById } from "@/app/lib/data";
@@ -7,7 +9,10 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const id = params.id;
 
-  const customer = await fetchCustomerById(id);
+  const [customer, t] = await Promise.all([
+    fetchCustomerById(id),
+    getTranslations("Customers"),
+  ]);
 
   if (!customer) {
     notFound();
@@ -17,10 +22,10 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
     <main>
       <Breadcrumbs
         breadcrumbs={[
-          { label: "Customers", href: "/dashboard/customers" },
+          { label: t("title"), href: "/dashboard/customers" },
           {
-            label: "Edit Customer",
-            href: `/dashboard/customers/${id}/edit`,
+            label: t("edit"),
+            href: { pathname: "/dashboard/customers/[id]/edit", params: { id } },
             active: true,
           },
         ]}

@@ -1,6 +1,7 @@
 "use client";
 
-import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { useActionState } from "react";
 
 import { updateCustomer, CustomerState } from "../../lib/actions";
@@ -9,6 +10,7 @@ import AvatarPicker from "./avatar-picker";
 import { Customer } from "../../lib/definitions";
 
 export default function EditCustomerForm({ customer }: { customer: Customer }) {
+  const t = useTranslations("Customers");
   const initialState: CustomerState = { message: null, errors: {} };
 
   const updateCustomerWithId = updateCustomer.bind(null, customer.id);
@@ -23,7 +25,7 @@ export default function EditCustomerForm({ customer }: { customer: Customer }) {
         {/* Customer Name */}
         <div className="mb-4">
           <label htmlFor="name" className="mb-2 block text-sm font-medium">
-            Name
+            {t("nameLabel")}
           </label>
           <div className="relative mt-2 rounded-md">
             <input
@@ -31,15 +33,15 @@ export default function EditCustomerForm({ customer }: { customer: Customer }) {
               name="name"
               type="text"
               defaultValue={customer.name}
-              placeholder="Enter a name"
-              className="peer block w-full rounded-md border border-gray-200 py-2 pl-4 text-sm outline-2 placeholder:text-gray-500"
+              placeholder={t("namePlaceholder")}
+              className="peer block w-full rounded-md border border-gray-200 py-2 ps-4 text-sm outline-2 placeholder:text-gray-500"
               required
               aria-describedby="name-error"
             />
           </div>
           <div id="name-error" aria-live="polite" aria-atomic="true">
-            {state.errors?.name &&
-              state.errors.name.map((error: string) => (
+            {state?.errors?.name &&
+              state?.errors.name.map((error: string) => (
                 <p className="mt-2 text-sm text-red-500" key={error}>
                   {error}
                 </p>
@@ -50,7 +52,7 @@ export default function EditCustomerForm({ customer }: { customer: Customer }) {
         {/* Customer Email */}
         <div className="mb-4">
           <label htmlFor="email" className="mb-2 block text-sm font-medium">
-            Email
+            {t("emailLabel")}
           </label>
           <div className="relative mt-2 rounded-md">
             <input
@@ -58,15 +60,15 @@ export default function EditCustomerForm({ customer }: { customer: Customer }) {
               name="email"
               type="email"
               defaultValue={customer.email}
-              placeholder="Enter an E-mail"
-              className="peer block w-full rounded-md border border-gray-200 py-2 pl-4 text-sm outline-2 placeholder:text-gray-500"
+              placeholder={t("emailPlaceholder")}
+              className="peer block w-full rounded-md border border-gray-200 py-2 ps-4 text-sm outline-2 placeholder:text-gray-500"
               required
               aria-describedby="email-error"
             />
           </div>
           <div id="email-error" aria-live="polite" aria-atomic="true">
-            {state.errors?.email &&
-              state.errors.email.map((error: string) => (
+            {state?.errors?.email &&
+              state?.errors.email.map((error: string) => (
                 <p className="mt-2 text-sm text-red-500" key={error}>
                   {error}
                 </p>
@@ -77,12 +79,12 @@ export default function EditCustomerForm({ customer }: { customer: Customer }) {
         {/* Customer Avatar */}
         <div className="mb-4">
           <label htmlFor="imageUrl" className="mb-2 block text-sm font-medium">
-            Picture
+            {t("pictureLabel")}
           </label>
           <AvatarPicker
             defaultValue={customer.image_url}
             name="imageUrl"
-            error={state.errors?.imageUrl}
+            error={state?.errors?.imageUrl}
           />
         </div>
       </div>
@@ -91,9 +93,9 @@ export default function EditCustomerForm({ customer }: { customer: Customer }) {
           href="/dashboard/customers"
           className="flex h-10 items-center rounded-lg bg-gray-100 px-4 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-200"
         >
-          Cancel
+          {t("cancel")}
         </Link>
-        <Button type="submit">Edit Customer</Button>
+        <Button type="submit">{t("edit")}</Button>
       </div>
     </form>
   );

@@ -2,9 +2,9 @@
 
 import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/react/24/outline";
 import clsx from "clsx";
-import Link from "next/link";
+import { Link, usePathname } from "@/i18n/navigation";
 import { generatePagination } from "@/app/lib/utils";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 export default function Pagination({ totalPages }: { totalPages: number }) {
   const pathname = usePathname();
@@ -14,10 +14,17 @@ export default function Pagination({ totalPages }: { totalPages: number }) {
   const allPages = generatePagination(currentPage, totalPages);
 
   const createPageURL = (pageNumber: number | string) => {
-    const params = new URLSearchParams(searchParams);
-    params.set("page", pageNumber.toString());
+    const query = Object.fromEntries(searchParams);
+    query.page = pageNumber.toString();
 
-    return `${pathname}?${params.toString()}`;
+    // pathnames are typed now, so a hand-built "?query=" string no longer
+    // satisfies Link's href -- pass pathname and query separately instead.
+    // Pagination only ever renders on these two static list pages, so the
+    // cast is narrowing to what's actually true, not papering over it.
+    return {
+      pathname: pathname as "/dashboard/invoices" | "/dashboard/customers",
+      query,
+    };
   };
 
   return (
@@ -28,7 +35,7 @@ export default function Pagination({ totalPages }: { totalPages: number }) {
         isDisabled={currentPage <= 1}
       />
 
-      <div className="flex -space-x-px">
+      <div className="flex -space-x-px rtl:space-x-reverse">
         {allPages.map((page, index) => {
           let position: "first" | "last" | "single" | "middle" | undefined;
 
@@ -65,15 +72,15 @@ function PaginationNumber({
   position,
 }: {
   page: number | string;
-  href: string;
+  href: React.ComponentProps<typeof Link>["href"];
   position?: "first" | "last" | "middle" | "single";
   isActive: boolean;
 }) {
   const className = clsx(
     "flex h-10 w-10 items-center justify-center text-sm border",
     {
-      "rounded-l-md": position === "first" || position === "single",
-      "rounded-r-md": position === "last" || position === "single",
+      "rounded-s-md": position === "first" || position === "single",
+      "rounded-e-md": position === "last" || position === "single",
       "z-10 bg-blue-600 border-blue-600 text-white": isActive,
       "hover:bg-gray-100": !isActive && position !== "middle",
       "text-gray-300": position === "middle",
@@ -94,7 +101,7 @@ function PaginationArrow({
   direction,
   isDisabled,
 }: {
-  href: string;
+  href: React.ComponentProps<typeof Link>["href"];
   direction: "left" | "right";
   isDisabled?: boolean;
 }) {
@@ -103,16 +110,16 @@ function PaginationArrow({
     {
       "pointer-events-none text-gray-300": isDisabled,
       "hover:bg-gray-100": !isDisabled,
-      "mr-2 md:mr-4": direction === "left",
-      "ml-2 md:ml-4": direction === "right",
+      "me-2 md:me-4": direction === "left",
+      "ms-2 md:ms-4": direction === "right",
     },
   );
 
   const icon =
     direction === "left" ? (
-      <ArrowLeftIcon className="w-4" />
+      <ArrowLeftIcon className="w-4 rtl:rotate-180" />
     ) : (
-      <ArrowRightIcon className="w-4" />
+      <ArrowRightIcon className="w-4 rtl:rotate-180" />
     );
 
   return isDisabled ? (

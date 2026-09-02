@@ -3,8 +3,9 @@
 import z from "zod";
 import postgres from "postgres";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { redirect } from "@/i18n/navigation";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
@@ -21,11 +22,12 @@ export async function authenticate(
     await signIn("credentials", formData);
   } catch (error) {
     if (error instanceof AuthError) {
+      const t = await getTranslations("Login");
       switch (error.type) {
         case "CredentialsSignin":
-          return "Invalid credentials.";
+          return t("invalidCredentials");
         default:
-          return "Something went wrong.";
+          return t("somethingWrong");
       }
     }
     throw error;
@@ -57,7 +59,7 @@ export type InvoiceState = {
 };
 
 export async function createInvoice(
-  prevState: InvoiceState,
+  prevState: InvoiceState | undefined,
   formData: FormData,
 ) {
   // Validate form fields using Zod
@@ -90,13 +92,13 @@ export async function createInvoice(
   }
 
   // Revalidate the cache for the invoices page and redirect the user.
-  revalidatePath("/dashboard/invoices");
-  redirect("/dashboard/invoices");
+  revalidatePath("/[locale]/dashboard/invoices", "page");
+  redirect({ href: "/dashboard/invoices", locale: await getLocale() });
 }
 
 export async function updateInvoice(
   id: string,
-  prevState: InvoiceState,
+  prevState: InvoiceState | undefined,
   formData: FormData,
 ) {
   const validatedFields = UpdateInvoice.safeParse({
@@ -127,8 +129,8 @@ export async function updateInvoice(
     return { message: "Database Error: Failed to Update Invoice." };
   }
 
-  revalidatePath("/dashboard/invoices");
-  redirect("/dashboard/invoices");
+  revalidatePath("/[locale]/dashboard/invoices", "page");
+  redirect({ href: "/dashboard/invoices", locale: await getLocale() });
 }
 
 export async function deleteInvoice(id: string): Promise<InvoiceState> {
@@ -138,7 +140,7 @@ export async function deleteInvoice(id: string): Promise<InvoiceState> {
     return { message: "Database Error: Failed to Delete Invoice." };
   }
 
-  revalidatePath("/dashboard/invoices");
+  revalidatePath("/[locale]/dashboard/invoices", "page");
   return { message: null };
 }
 
@@ -166,7 +168,7 @@ export type CustomerState = {
 };
 
 export async function createCustomer(
-  prevState: CustomerState,
+  prevState: CustomerState | undefined,
   formData: FormData,
 ) {
   // Validate form fields using Zod
@@ -198,13 +200,13 @@ export async function createCustomer(
   }
 
   // Revalidate the cache for the customers page and redirect the user.
-  revalidatePath("/dashboard/customers");
-  redirect("/dashboard/customers");
+  revalidatePath("/[locale]/dashboard/customers", "page");
+  redirect({ href: "/dashboard/customers", locale: await getLocale() });
 }
 
 export async function updateCustomer(
   id: string,
-  prevState: CustomerState,
+  prevState: CustomerState | undefined,
   formData: FormData,
 ) {
   const validatedFields = UpdateCustomer.safeParse({
@@ -237,8 +239,8 @@ export async function updateCustomer(
   }
 
   // Revalidate the cache for the customers page and redirect the user.
-  revalidatePath("/dashboard/customers");
-  redirect("/dashboard/customers");
+  revalidatePath("/[locale]/dashboard/customers", "page");
+  redirect({ href: "/dashboard/customers", locale: await getLocale() });
 }
 
 export async function deleteCustomer(id: string): Promise<CustomerState> {
@@ -253,8 +255,9 @@ export async function deleteCustomer(id: string): Promise<CustomerState> {
     `;
 
     if (Number(count) > 0) {
+      const t = await getTranslations("Customers");
       return {
-        message: `Cannot delete: this customer still has ${count} invoice(s).`,
+        message: t("cannotDelete", { count: Number(count) }),
       };
     }
 
@@ -264,6 +267,6 @@ export async function deleteCustomer(id: string): Promise<CustomerState> {
     return { message: "Database Error: Failed to Delete Customer." };
   }
 
-  revalidatePath("/dashboard/customers");
+  revalidatePath("/[locale]/dashboard/invoices", "page");
   return { message: null };
 }

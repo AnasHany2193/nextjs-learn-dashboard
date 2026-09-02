@@ -1,14 +1,18 @@
+import { getTranslations } from "next-intl/server";
+
 import Form from "@/app/ui/customers/create-form";
 import Breadcrumbs from "@/app/ui/breadcrumbs";
 
 export default async function Page() {
+  const t = await getTranslations("Customers");
+
   return (
     <main>
       <Breadcrumbs
         breadcrumbs={[
-          { label: "Customers", href: "/dashboard/customers" },
+          { label: t("title"), href: "/dashboard/customers" },
           {
-            label: "Create Customer",
+            label: t("create"),
             href: "/dashboard/customers/create",
             active: true,
           },

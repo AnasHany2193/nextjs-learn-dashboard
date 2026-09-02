@@ -1,6 +1,8 @@
+import { Metadata } from "next";
 import { Suspense } from "react";
+import { getTranslations } from "next-intl/server";
 
-import { fetchInvoicesPages } from "../../lib/data";
+import { fetchInvoicesPages } from "@/app/lib/data";
 
 import Search from "@/app/ui/search";
 import { lusitana } from "@/app/ui/fonts";
@@ -9,15 +11,16 @@ import { InvoicesTableSkeleton } from "@/app/ui/skeletons";
 import Table from "@/app/ui/invoices/table";
 import Pagination from "@/app/ui/pagination";
 import { CreateInvoice } from "@/app/ui/invoices/buttons";
-import { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Invoices",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Invoices");
+  return { title: t("title") };
+}
 
 export default async function Page(props: {
   searchParams?: Promise<{ query?: string; page?: string }>;
 }) {
+  const t = await getTranslations("Invoices");
   const searchParams = await props.searchParams;
 
   const query = searchParams?.query || "";
@@ -28,11 +31,11 @@ export default async function Page(props: {
   return (
     <div className="w-full">
       <div className="flex w-full items-center justify-between">
-        <h1 className={`${lusitana.className} text-2xl`}>Invoices</h1>
+        <h1 className={`${lusitana.className} text-2xl`}>{t("title")}</h1>
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-2 md:mt-8">
-        <Search placeholder="Search invoices..." />
+        <Search placeholder={t("search")} />
         <CreateInvoice />
       </div>
 

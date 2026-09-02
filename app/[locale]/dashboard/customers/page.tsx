@@ -1,23 +1,26 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
+import { getTranslations } from "next-intl/server";
 
 import { lusitana } from "@/app/ui/fonts";
-import { fetchCustomersPages } from "../../lib/data";
+import { fetchCustomersPages } from "@/app/lib/data";
 
-import Search from "../../ui/search";
-import { CustomersTableSkeleton } from "../../ui/skeletons";
+import Search from "@/app/ui/search";
+import { CustomersTableSkeleton } from "@/app/ui/skeletons";
 
-import Pagination from "../../ui/pagination";
+import Pagination from "@/app/ui/pagination";
 import CustomersTable from "@/app/ui/customers/table";
-import { CreateCustomer } from "../../ui/customers/buttons";
+import { CreateCustomer } from "@/app/ui/customers/buttons";
 
-export const metadata: Metadata = {
-  title: "Customers",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Customers");
+  return { title: t("title") };
+}
 
 export default async function Page(props: {
   searchParams?: Promise<{ query?: string; page?: string }>;
 }) {
+  const t = await getTranslations("Customers");
   const searchParams = await props.searchParams;
 
   const query = searchParams?.query || "";
@@ -28,11 +31,11 @@ export default async function Page(props: {
   return (
     <div className="w-full">
       <h1 className={`${lusitana.className} mb-8 text-xl md:text-2xl`}>
-        Customers
+        {t("title")}
       </h1>
 
       <div className="mt-4 flex items-center justify-between gap-2 md:mt-8">
-        <Search placeholder="Search invoices..." />
+        <Search placeholder={t("search")} />
         <CreateCustomer />
       </div>
 

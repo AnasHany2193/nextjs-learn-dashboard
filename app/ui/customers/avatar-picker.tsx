@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { ChevronUpDownIcon } from "@heroicons/react/24/outline";
 
@@ -29,6 +30,7 @@ export default function AvatarPicker({
   defaultValue?: string;
   error?: string[];
 }) {
+  const t = useTranslations("Customers");
   const [value, setValue] = useState(defaultValue);
   const [open, setOpen] = useState(false);
   const listboxId = useId();
@@ -58,7 +60,7 @@ export default function AvatarPicker({
         onKeyDown={(e) => {
           if (e.key === "Escape") setOpen(false);
         }}
-        className="flex w-full items-center gap-3 rounded-md border border-gray-200 bg-white py-2 pl-3 pr-3 text-sm outline-2"
+        className="flex w-full items-center gap-3 rounded-md border border-gray-200 bg-white py-2 ps-3 pe-3 text-sm outline-2"
       >
         {selected ? (
           <Image
@@ -73,8 +75,8 @@ export default function AvatarPicker({
             —
           </span>
         )}
-        <span className="flex-1 text-left capitalize text-gray-900">
-          {selected ? selected.label : "No picture (use initials)"}
+        <span className="flex-1 text-start capitalize text-gray-900">
+          {selected ? selected.label : t("noPicture")}
         </span>
         <ChevronUpDownIcon className="h-4 w-4 text-gray-400" />
       </button>
@@ -83,7 +85,7 @@ export default function AvatarPicker({
         <ul
           id={listboxId}
           role="listbox"
-          aria-label="Choose a picture"
+          aria-label={t("choosePicture")}
           className="absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg"
         >
           <li
@@ -102,7 +104,7 @@ export default function AvatarPicker({
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[10px] font-medium text-gray-500">
               —
             </span>
-            No picture (use initials)
+            {t("noPicture")}
           </li>
           {AVATARS.map((avatar) => (
             <li

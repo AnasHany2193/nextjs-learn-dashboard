@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import { fetchFilteredCustomers } from "../../lib/data";
 import CustomerAvatar from "./avatar";
 import { DeleteCustomer, UpdateCustomer } from "./buttons";
@@ -10,6 +12,7 @@ export default async function CustomersTable({
   currentPage: number;
 }) {
   const customers = await fetchFilteredCustomers(query, currentPage);
+  const t = await getTranslations("Customers");
 
   return (
     <div className="mt-6 flow-root">
@@ -38,16 +41,20 @@ export default async function CustomersTable({
                   </div>
                   <div className="flex w-full items-center justify-between border-b py-5">
                     <div className="flex w-1/2 flex-col">
-                      <p className="text-xs">Pending</p>
+                      <p className="text-xs">{t("mobilePending")}</p>
                       <p className="font-medium">{customer.total_pending}</p>
                     </div>
                     <div className="flex w-1/2 flex-col">
-                      <p className="text-xs">Paid</p>
+                      <p className="text-xs">{t("mobilePaid")}</p>
                       <p className="font-medium">{customer.total_paid}</p>
                     </div>
                   </div>
                   <div className="flex w-full items-center justify-between p-4 pb-0">
-                    <p>{customer.total_invoices} invoices</p>
+                    <p>
+                      {t("mobileInvoiceCount", {
+                        count: customer.total_invoices,
+                      })}
+                    </p>
                     <div className="flex justify-end gap-2">
                       <UpdateCustomer id={customer.id} />
                       <DeleteCustomer id={customer.id} />
@@ -57,25 +64,25 @@ export default async function CustomersTable({
               ))}
             </div>
             <table className="hidden min-w-full rounded-md text-gray-900 md:table">
-              <thead className="rounded-md bg-gray-50 text-left text-sm font-normal">
+              <thead className="rounded-md bg-gray-50 text-start text-sm font-normal">
                 <tr>
-                  <th scope="col" className="px-4 py-5 font-medium sm:pl-6">
-                    Name
+                  <th scope="col" className="px-4 py-5 font-medium sm:ps-6">
+                    {t("tableName")}
                   </th>
                   <th scope="col" className="px-3 py-5 font-medium">
-                    Email
+                    {t("tableEmail")}
                   </th>
                   <th scope="col" className="px-3 py-5 font-medium">
-                    Total Invoices
+                    {t("tableInvoices")}
                   </th>
                   <th scope="col" className="px-3 py-5 font-medium">
-                    Total Pending
+                    {t("tablePending")}
                   </th>
                   <th scope="col" className="px-4 py-5 font-medium">
-                    Total Paid
+                    {t("tablePaid")}
                   </th>
-                  <th scope="col" className="relative py-3 pl-6 pr-3">
-                    <span className="sr-only">Edit</span>
+                  <th scope="col" className="relative py-3 ps-6 pe-3">
+                    <span className="sr-only">{t("editSr")}</span>
                   </th>
                 </tr>
               </thead>
@@ -83,7 +90,7 @@ export default async function CustomersTable({
               <tbody className="bg-white divide-y divide-gray-200 text-gray-900">
                 {customers.map((customer) => (
                   <tr key={customer.id} className="group">
-                    <td className="whitespace-nowrap bg-white py-5 pl-4 pr-3 text-sm text-black group-first-of-type:rounded-md group-last-of-type:rounded-md sm:pl-6">
+                    <td className="whitespace-nowrap bg-white py-5 ps-4 pe-3 text-sm text-black group-first-of-type:rounded-md group-last-of-type:rounded-md sm:ps-6">
                       <div className="flex items-center gap-3">
                         <CustomerAvatar
                           name={customer.name}
@@ -104,7 +111,7 @@ export default async function CustomersTable({
                     <td className="whitespace-nowrap px-4 py-5 text-sm group-first-of-type:rounded-md group-last-of-type:rounded-md">
                       {customer.total_paid}
                     </td>
-                    <td className="whitespace-nowrap py-3 pl-6 pr-3">
+                    <td className="whitespace-nowrap py-3 ps-6 pe-3">
                       <div className="flex items-start justify-end gap-3">
                         <UpdateCustomer id={customer.id} />
                         <DeleteCustomer id={customer.id} />

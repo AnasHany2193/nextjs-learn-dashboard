@@ -2,8 +2,15 @@ import "@/app/ui/global.css";
 
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+
 import { hasLocale, NextIntlClientProvider } from "next-intl";
+
+import {
+  getMessages,
+  getTimeZone,
+  getTranslations,
+  setRequestLocale,
+} from "next-intl/server";
 
 import { bodyFont } from "@/app/ui/fonts";
 import { routing } from "@/i18n/routing";
@@ -55,10 +62,32 @@ export default async function RootLayout({
 
   const dir = locale === "ar" ? "rtl" : "ltr";
 
+  // Temporary. Whichever await blocks will now point here, and
+  // --debug-prerender will name the line instead of the provider.
+  //
+  // `now` is deliberately not hoisted here: getNow() would resolve to a
+  // live new Date(), which is synchronous IO the prerender rejects with no
+  // escape hatch. i18n/request.ts caches a build-time `now` in the request
+  // config instead, so the provider's own internal await resolves from
+  // that cache rather than a fresh clock read.
+  const messages = await getMessages();
+  const timeZone = await getTimeZone();
+
   return (
     <html lang={locale} dir={dir}>
       <body className={`${bodyFont(locale).className} antialiased`}>
-        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider
+          locale={locale}
+          messages={messages}
+          timeZone={timeZone}
+          // getFormats() isn't a public next-intl/server export (only
+          // getFormatter, the runtime formatter, is). i18n/request.ts
+          // returns no custom `formats` key, so an empty object skips
+          // the provider's internal await and is behaviorally identical.
+          formats={{}}
+        >
+          {children}
+        </NextIntlClientProvider>
       </body>
     </html>
   );

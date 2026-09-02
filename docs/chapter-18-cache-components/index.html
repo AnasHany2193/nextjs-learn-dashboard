@@ -1,0 +1,1322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/nextjs-learn-dashboard/favicon.svg" type="image/svg+xml">
+<meta name="description" content="A plan for adopting Next.js 16 Cache Components on a bilingual, login-walled dashboard: use cache, cacheLife, cacheTag, use cache: private, and the next-intl provider that blocks every route from prerendering.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Cache Components and the static shell">
+<meta property="og:description" content="Turning eleven fully dynamic routes into prerendered static shells, and finding out what actually blocks them.">
+<meta property="og:url" content="https://anashany2193.github.io/nextjs-learn-dashboard/chapter-18-cache-components/">
+<meta property="og:image" content="https://anashany2193.github.io/nextjs-learn-dashboard/opengraph-image.png">
+<meta property="og:image:width" content="1686">
+<meta property="og:image:height" content="882">
+<meta property="og:image:alt" content="Acme Dashboard">
+<link rel="canonical" href="https://anashany2193.github.io/nextjs-learn-dashboard/chapter-18-cache-components/">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "Cache Components and the static shell",
+  "description": "Turning eleven fully dynamic routes into prerendered static shells, and finding out what actually blocks them.",
+  "url": "https://anashany2193.github.io/nextjs-learn-dashboard/chapter-18-cache-components/",
+  "author": { "@type": "Person", "name": "Anas Hany" },
+  "isPartOf": {
+    "@type": "Blog",
+    "name": "Beyond the Next.js Course",
+    "url": "https://anashany2193.github.io/nextjs-learn-dashboard/"
+  }
+}
+</script>
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://anashany2193.github.io/nextjs-learn-dashboard/opengraph-image.png">
+<title>Prerendering Acme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --bg:        #ffffff;
+    --surface:   #f6f7f9;
+    --surface-2: #eef1f4;
+    --ink:       #0b0d0e;
+    --ink-2:     #3a424c;
+    --muted:     #5c6470;
+    --rule:      #e2e6ea;
+    --rule-2:    #cfd5dc;
+    --accent:    #0070f3;
+    --accent-ink:#0057c2;
+    --accent-wash:#eaf2ff;
+    --warn:      #a2560c;
+    --warn-wash: #fdf2e4;
+    --warn-rule: #eccfa5;
+    --ok:        #0f7b5f;
+    --ok-wash:   #e7f4ef;
+    --ok-rule:   #b3ddcd;
+    --code-bg:   #f6f7f9;
+
+    --f-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --f-mono: "Geist Mono", ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    --f-ar:   "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:        #0b0d0e;
+      --surface:   #141719;
+      --surface-2: #1c2023;
+      --ink:       #e9ecef;
+      --ink-2:     #b6bdc5;
+      --muted:     #868f99;
+      --rule:      #24292e;
+      --rule-2:    #333a41;
+      --accent:    #2589fe;
+      --accent-ink:#63aaff;
+      --accent-wash:#11212f;
+      --warn:      #e0a244;
+      --warn-wash: #241c0f;
+      --warn-rule: #4a3a1d;
+      --ok:        #35b08a;
+      --ok-wash:   #0e1f1a;
+      --ok-rule:   #1f4437;
+      --code-bg:   #101315;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg:        #0b0d0e;
+    --surface:   #141719;
+    --surface-2: #1c2023;
+    --ink:       #e9ecef;
+    --ink-2:     #b6bdc5;
+    --muted:     #868f99;
+    --rule:      #24292e;
+    --rule-2:    #333a41;
+    --accent:    #2589fe;
+    --accent-ink:#63aaff;
+    --accent-wash:#11212f;
+    --warn:      #e0a244;
+    --warn-wash: #241c0f;
+    --warn-rule: #4a3a1d;
+    --ok:        #35b08a;
+    --ok-wash:   #0e1f1a;
+    --ok-rule:   #1f4437;
+    --code-bg:   #101315;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--f-sans);
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 24px 96px;
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+    gap: 56px;
+    align-items: start;
+  }
+
+  /* ---------- rail ---------- */
+  .rail {
+    position: sticky;
+    top: 0;
+    padding: 56px 0 40px;
+    max-height: 100vh;
+    overflow-y: auto;
+  }
+  .rail-title {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+  .rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+  .rail a {
+    display: grid;
+    grid-template-columns: 22px 1fr;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 5px;
+    text-decoration: none;
+    color: var(--ink-2);
+    font-size: 13.5px;
+    line-height: 1.4;
+    border-inline-start: 2px solid transparent;
+  }
+  .rail a:hover { background: var(--surface); color: var(--ink); }
+  .rail a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .rail .n {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    color: var(--muted);
+    padding-top: 3px;
+  }
+  .rail .sep {
+    margin: 14px 0 8px;
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ---------- main ---------- */
+  main { padding: 56px 0 0; min-width: 0; }
+  .prose { max-width: 68ch; }
+
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 12px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 12px;
+  }
+
+  h1 {
+    font-size: clamp(30px, 4vw, 42px);
+    line-height: 1.12;
+    letter-spacing: -.024em;
+    font-weight: 650;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--ink-2);
+    margin: 0 0 8px;
+    max-width: 62ch;
+  }
+
+  h2 {
+    font-size: 25px;
+    line-height: 1.25;
+    letter-spacing: -.018em;
+    font-weight: 600;
+    margin: 64px 0 14px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    text-wrap: balance;
+  }
+  h2 .step-n {
+    font-family: var(--f-mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    display: block;
+    letter-spacing: .06em;
+    margin-bottom: 6px;
+  }
+  h3 {
+    font-size: 16.5px;
+    font-weight: 600;
+    letter-spacing: -.008em;
+    margin: 32px 0 10px;
+  }
+  h4 {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 26px 0 8px;
+  }
+
+  p { margin: 0 0 14px; }
+  a { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+  strong { font-weight: 600; color: var(--ink); }
+
+  ul, ol.body-list { margin: 0 0 14px; padding-inline-start: 20px; }
+  li { margin-bottom: 6px; }
+  li::marker { color: var(--muted); }
+
+  code {
+    font-family: var(--f-mono);
+    font-size: .875em;
+    background: var(--surface-2);
+    padding: .12em .34em;
+    border-radius: 3px;
+    color: var(--ink);
+  }
+
+  /* ---------- code blocks ---------- */
+  .code {
+    margin: 18px 0 22px;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--code-bg);
+  }
+  .code-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--rule);
+    font-family: var(--f-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .code-head .path { color: var(--ink-2); }
+  .code-head .tag {
+    font-size: 10px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--rule-2);
+    white-space: nowrap;
+  }
+  .tag.new { color: var(--ok); border-color: var(--ok-rule); background: var(--ok-wash); }
+  .tag.edit { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-wash); }
+  .code pre {
+    margin: 0;
+    padding: 14px;
+    overflow-x: auto;
+    font-family: var(--f-mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--ink);
+    tab-size: 2;
+  }
+  .code pre code { background: none; padding: 0; font-size: inherit; }
+  .c { color: var(--muted); }
+  .del { color: var(--warn); }
+  .add { color: var(--ok); }
+
+  /* ---------- callouts ---------- */
+  .note {
+    margin: 20px 0;
+    padding: 14px 16px;
+    border: 1px solid var(--rule);
+    border-inline-start: 3px solid var(--accent);
+    border-radius: 6px;
+    background: var(--surface);
+    font-size: 15px;
+  }
+  .note > :last-child { margin-bottom: 0; }
+  .note .lbl {
+    display: block;
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .note.warn { border-inline-start-color: var(--warn); background: var(--warn-wash); border-color: var(--warn-rule); }
+  .note.warn .lbl { color: var(--warn); }
+  .note.ok { border-inline-start-color: var(--ok); background: var(--ok-wash); border-color: var(--ok-rule); }
+  .note.ok .lbl { color: var(--ok); }
+
+  /* ---------- learn box ---------- */
+  .learn {
+    margin: 32px 0 8px;
+    padding: 22px 24px;
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    background: var(--surface);
+  }
+  .learn h4 { margin-top: 0; }
+  .learn ul { margin-bottom: 0; }
+
+  /* ---------- checkpoint ---------- */
+  .check {
+    margin: 20px 0 0;
+    padding: 12px 16px;
+    border: 1px dashed var(--rule-2);
+    border-radius: 6px;
+    font-size: 14.5px;
+    color: var(--ink-2);
+    background: transparent;
+  }
+  .check .lbl {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-inline-end: 8px;
+  }
+  .check > :last-child { margin-bottom: 0; }
+
+  /* ---------- files touched ---------- */
+  .files { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 20px; }
+  .file {
+    font-family: var(--f-mono);
+    font-size: 12px;
+    padding: 3px 8px;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .file.is-new { border-color: var(--ok-rule); color: var(--ok); background: var(--ok-wash); }
+
+  /* ---------- table ---------- */
+  .table-wrap { overflow-x: auto; margin: 18px 0 22px; border: 1px solid var(--rule); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: start; padding: 9px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    background: var(--surface);
+    white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: none; }
+  td code { font-size: 12.5px; white-space: nowrap; }
+
+  /* ---------- bidi specimen ---------- */
+  .bidi {
+    margin: 24px 0;
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .bidi-head {
+    padding: 8px 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--rule);
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .bidi-grid { display: grid; grid-template-columns: 1fr 1fr; }
+  .bidi-cell { padding: 18px; min-width: 0; }
+  .bidi-cell + .bidi-cell { border-inline-start: 1px solid var(--rule); }
+  .bidi-cell .dirlabel {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+  .mini {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 11px;
+    border-radius: 6px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  .mini:last-child { margin-bottom: 0; }
+  .mini .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
+  .mini .amt { margin-inline-start: auto; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
+  [dir="rtl"] .mini, .ar { font-family: var(--f-ar); }
+
+  /* ---------- footer commit ---------- */
+  .commit {
+    margin: 18px 0;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .commit pre {
+    margin: 0;
+    padding: 14px;
+    background: var(--code-bg);
+    font-family: var(--f-mono);
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: auto;
+    color: var(--ink);
+  }
+
+  .verdict {
+    margin: 40px 0 0;
+    padding: 20px 22px;
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    background: var(--surface);
+  }
+  .verdict h3 { margin-top: 0; }
+  .verdict > :last-child { margin-bottom: 0; }
+
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; gap: 0; padding: 0 20px 72px; }
+    .rail {
+      position: static;
+      max-height: none;
+      padding: 32px 0 0;
+      border-bottom: 1px solid var(--rule);
+      margin-bottom: 8px;
+      padding-bottom: 20px;
+    }
+    .rail ol { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 2px; }
+    main { padding-top: 32px; }
+    .bidi-grid { grid-template-columns: 1fr; }
+    .bidi-cell + .bidi-cell { border-inline-start: none; border-top: 1px solid var(--rule); }
+  }
+</style>
+
+</head>
+<body>
+<div class="shell">
+
+  <nav class="rail" aria-label="Chapter contents">
+    <p class="rail-title">Chapter 18 · Plan</p>
+    <ol>
+      <li><a href="#why"><span class="n">·</span><span>Why this chapter</span></a></li>
+      <li><a href="#recon"><span class="n">·</span><span>Recon</span></a></li>
+      <li><a href="#decisions"><span class="n">·</span><span>Decisions</span></a></li>
+      <li><a href="#s1"><span class="n">01</span><span>Flag &amp; root params</span></a></li>
+      <li><a href="#s2"><span class="n">02</span><span>Unblock the root layout</span></a></li>
+      <li><a href="#s3"><span class="n">03</span><span>Locale out of the data layer</span></a></li>
+      <li><a href="#s4"><span class="n">04</span><span>use cache &amp; cacheLife</span></a></li>
+      <li><a href="#s5"><span class="n">05</span><span>Tags &amp; invalidation</span></a></li>
+      <li><a href="#s6"><span class="n">06</span><span>searchParams into Suspense</span></a></li>
+      <li><a href="#s7"><span class="n">07</span><span>The session read</span></a></li>
+      <li><a href="#s8"><span class="n">08</span><span>Measure it</span></a></li>
+      <li class="sep">Reference</li>
+      <li><a href="#escape"><span class="n">·</span><span>The escape hatch</span></a></li>
+      <li><a href="#risks"><span class="n">·</span><span>What could go wrong</span></a></li>
+      <li><a href="#commits"><span class="n">·</span><span>Commit discipline</span></a></li>
+      <li><a href="#honest"><span class="n">·</span><span>What this isn't</span></a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <div class="prose">
+
+      <p class="eyebrow">Self-directed · Chapter 18 · Plan</p>
+      <h1>Cache Components and the static shell</h1>
+      <p class="standfirst">Every route in this app is server-rendered on demand. Eleven of eleven. Next 16's Cache Components model can turn most of that into a prerendered shell that ships instantly, with only the genuinely per-request parts streaming in behind it. This is the plan for getting there, written after a reconnaissance run that already found the one thing blocking all eleven.</p>
+
+      <div class="learn">
+        <h4>What this chapter should produce</h4>
+        <ul>
+          <li><code>cacheComponents: true</code> on Next.js <strong>16.3.3</strong></li>
+          <li>A non-empty <strong>static shell</strong> for every route that can have one</li>
+          <li><code>use cache</code> and <code>cacheLife</code> on the read paths in <code>app/lib/data.ts</code></li>
+          <li><code>cacheTag</code> plus <code>updateTag</code> replacing six blanket <code>revalidatePath</code> calls</li>
+          <li>The Chapter 17 known gap (formatting inside the data layer) closed, because it becomes a hard blocker here</li>
+          <li>A before and after route table, which is the actual deliverable</li>
+        </ul>
+      </div>
+
+      <h2 id="why">Why this chapter, and why now</h2>
+
+      <p>Chapter 17 moved every route under <code>app/[locale]/</code>. Drawing cache boundaries before that would have meant drawing them twice, so this waited. Now the route tree is stable and the boundaries can be drawn once.</p>
+
+      <p>The premise of Cache Components is a reversal. In the old model, a route was static until something made it dynamic, and a single <code>cookies()</code> call anywhere in the tree quietly cost you the whole page. In the new model <strong>nothing is cached unless you say so</strong>, and the framework refuses to build until every uncached read is either wrapped in <code>use cache</code> or pushed behind a <code>&lt;Suspense&gt;</code> boundary. The compiler stops guessing and starts asking.</p>
+
+      <p>That is a better fit for a learning repo than for a deadline: the build failures <em>are</em> the lesson. So the working method for this chapter is to enable the flag first, read what breaks, and let the error list write the step order.</p>
+
+      <div class="note">
+        <span class="lbl">Terminology, because the docs assume it</span>
+        <p>The <strong>static shell</strong> is the part of a route's HTML that can be produced at build time, with holes where the dynamic parts go. A visitor gets the shell immediately from the edge; the holes fill in from the server as they stream. This is what used to be called Partial Prerendering. In Next 16 the <code>experimental_ppr</code> flag is gone and PPR is simply what Cache Components does.</p>
+      </div>
+
+      <h2 id="recon">Recon: what the flag actually says</h2>
+
+      <p>Before writing the plan, the flag was switched on, the build was run, and the tree was reverted. Everything in this section is real output from this repo, not from the documentation.</p>
+
+      <h3>Finding 1: the baseline is as bad as it can be</h3>
+      <p><code>pnpm build</code> on the current <code>main</code>:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">pnpm build · before</span><span class="tag">output</span></div>
+        <pre><code>Route (app)
+┌ ○ /_not-found
+├ ƒ /[locale]
+├ ƒ /[locale]/dashboard
+├ ƒ /[locale]/dashboard/customers
+├ ƒ /[locale]/dashboard/customers/[id]/edit
+├ ƒ /[locale]/dashboard/customers/create
+├ ƒ /[locale]/dashboard/invoices
+├ ƒ /[locale]/dashboard/invoices/[id]/edit
+├ ƒ /[locale]/dashboard/invoices/create
+├ ƒ /[locale]/login
+├ ƒ /query
+└ ƒ /seed
+
+<span class="c">○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand</span></code></pre>
+      </div>
+
+      <p>One static route, and it is the 404 page. Every route that a user actually visits, including the login page which has no per-user content at all, is rendered from scratch on every request. <strong>That is the number this chapter moves.</strong></p>
+
+      <h3>Finding 2: root params must be enumerated</h3>
+      <p>Enabling the flag fails immediately, before any rendering:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">pnpm build · error 1</span><span class="tag">output</span></div>
+        <pre><code><span class="del">Error: A required root parameter (locale) was not provided in
+generateStaticParams for /[locale], please provide at least one value.</span></code></pre>
+      </div>
+
+      <p>The app has no <code>generateStaticParams</code> anywhere. Without Cache Components that was fine, because every path was deferred to the first runtime visit. With it, Next needs at least one concrete value per root param so it has something to prerender and can check that the resulting shell is not empty.</p>
+
+      <h3>Finding 3: one component blocks all eighteen paths</h3>
+      <p>With that fixed, the build gets as far as rendering and then fails on every route at once. Running with <code>--debug-prerender</code> points at the same line every time:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">pnpm build --debug-prerender · error 2</span><span class="tag">output</span></div>
+        <pre><code><span class="del">Error: Route "/[locale]/dashboard": Next.js encountered uncached or
+runtime data during prerendering.</span>
+
+`fetch(...)`, `cookies()`, `headers()`, `params`, `searchParams`, or
+`connection()` accessed outside of &lt;Suspense&gt; prevents the route from
+being prerendered, blocking the page load and leading to a slower
+user experience.
+
+    at RootLayout (app\[locale]\layout.tsx:62:9)
+  60 |     &lt;html lang={locale} dir={dir}&gt;
+  61 |       &lt;body className={`${bodyFont(locale).className} antialiased`}&gt;
+<span class="del">&gt; 62 |         &lt;NextIntlClientProvider&gt;{children}&lt;/NextIntlClientProvider&gt;</span>
+     |         ^
+
+<span class="del">&gt; Export encountered errors on 18 paths</span></code></pre>
+      </div>
+
+      <p>Eighteen paths, which is nine routes across two locales, and a single cause. <code>NextIntlClientProvider</code> sits in the root layout, so whatever it does, every route inherits. Reading the installed package explains it. The server version of the provider performs five awaits before it renders anything:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">node_modules/next-intl/.../NextIntlClientProviderServer.js</span><span class="tag">installed</span></div>
+        <pre><code>formats:  formats  === undefined ? await getFormats()     : formats,
+locale:   locale   ?? (await getLocaleCached()),
+messages: messages === undefined ? await getMessages()    : messages,
+now:      now      ?? (await getConfigNow()),
+timeZone: timeZone ?? (await getTimeZone()),</code></pre>
+      </div>
+
+      <p>All five funnel into next-intl's <code>getConfig()</code>, which calls <code>getRequestConfig</code> from <code>i18n/request.ts</code>. That file does a dynamic <code>import()</code> of the message JSON, and a dynamic import is uncached IO. So the root layout performs uncached IO on every render, and under Cache Components that is fatal to the shell.</p>
+
+      <h3>Finding 4: the obvious fix is not sufficient</h3>
+      <p>The obvious move is to cache the message import, which was tried:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">i18n/request.ts</span><span class="tag edit">attempted</span></div>
+        <pre><code>async function loadMessages(locale: string) {
+  <span class="add">"use cache";
+  cacheLife("max");</span>
+  return (await import(`../messages/${locale}.json`)).default;
+}</code></pre>
+      </div>
+
+      <p><strong>The build failed identically.</strong> Same line, same eighteen paths. So at least one of the other four reads is independently blocking, and the plan cannot assume this is a one-line fix. Step 02 is written as a bisection rather than as a solution, which is the honest way to write a step whose answer is not yet known.</p>
+
+      <div class="note warn">
+        <span class="lbl">This is the chapter's real risk</span>
+        <p>Steps 03 to 08 are ordinary work with known shapes. Step 02 is load-bearing and unresolved: if next-intl 4.14.1 simply cannot render its provider inside a prerender, the ceiling for this chapter drops from "most routes get a shell" to "the flag is on and routes opt out". That outcome is worth writing down too, but it should be discovered in step 02, not in step 08.</p>
+      </div>
+
+      <h2 id="decisions">Decisions, and what they cost</h2>
+
+      <h3>Adopt directly, not incrementally</h3>
+      <p>The migration guide offers <code>instant = false</code> on every segment as a way to get the app building immediately and convert routes one at a time. For an eleven-route app that is more bookkeeping than benefit, and it hides exactly the errors this chapter exists to read. Direct adoption, with <code>instant = false</code> kept as a deliberate escape hatch (see <a href="#escape">the escape hatch</a>) rather than a starting position.</p>
+
+      <h3>Cache in the data layer, not in the pages</h3>
+      <p>Every database read already goes through <code>app/lib/data.ts</code>. Putting <code>use cache</code> on those functions means one place to reason about lifetimes, and it keeps the pages readable. The alternative, caching whole page components, couples the cache key to the route and makes the same query cached twice under two different keys.</p>
+
+      <h3>Plain <code>use cache</code>, not <code>use cache: remote</code></h3>
+      <p>Plain <code>use cache</code> stores entries in memory. On serverless that means they die with the instance and do not survive a deployment. <code>use cache: remote</code> gives durable shared storage and is the correct production answer, but it needs a cache handler this project does not have and will not pay for. Using the in-memory default and <strong>saying so plainly</strong> is better than pretending the hit rate is production-grade.</p>
+
+      <div class="note warn">
+        <span class="lbl">Worth knowing before you migrate anything</span>
+        <p>The old <code>fetch</code> Data Cache and <code>unstable_cache</code> both persisted across deployments and across serverless instances. Plain <code>use cache</code> does not. Migrating a hot <code>unstable_cache</code> path to <code>use cache</code> without a cache handler is a downgrade in persistence, even though it looks like a modernisation.</p>
+      </div>
+
+      <h3>Keep the login page honest</h3>
+      <p>The login page has no user-specific content and should end up fully static. If it does not, something is wrong with step 02, and it is the cheapest possible test case. It becomes the canary for the whole chapter.</p>
+
+      <h2 id="s1"><span class="step-n">Step 01</span>Turn on the flag and enumerate the root param</h2>
+
+      <div class="files">
+        <span class="file">next.config.ts</span>
+        <span class="file">app/[locale]/layout.tsx</span>
+      </div>
+
+      <p>The flag goes on the config object, inside the next-intl plugin wrapper that is already there.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">next.config.ts</span><span class="tag edit">edit</span></div>
+        <pre><code>const nextConfig: NextConfig = {
+<span class="add">  cacheComponents: true,</span>
+};
+
+export default createNextIntlPlugin()(nextConfig);</code></pre>
+      </div>
+
+      <p>Then give <code>[locale]</code> its two values. <code>routing.locales</code> is already the single source of truth from Chapter 17, so this stays derived rather than becoming a third list to keep in sync.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/[locale]/layout.tsx</span><span class="tag edit">edit</span></div>
+        <pre><code><span class="c">// Cache Components requires at least one value for every root param so
+// it can prerender a shell and check the shell is non-empty. Returning
+// [] now errors instead of deferring every path to the first visit.</span>
+<span class="add">export function generateStaticParams() {
+  return routing.locales.map((locale) =&gt; ({ locale }));
+}</span></code></pre>
+      </div>
+
+      <div class="note">
+        <span class="lbl">Locales are not the same as ids</span>
+        <p>There are exactly two locales, so listing both is complete. For <code>[id]</code> routes the rule is different: return a <em>subset</em>, often just one, and let the rest render on request. Paths not returned are still served, they just do not get a prebuilt shell. Do not try to enumerate every customer id.</p>
+      </div>
+
+      <div class="check">
+        <span class="lbl">Checkpoint</span>
+        <span>The build gets past "Collecting page data" and starts "Generating static pages using 14 workers (0/31)". Failures after this point are rendering failures, which is progress.</span>
+      </div>
+
+      <h4>Commit</h4>
+      <div class="commit">
+        <pre>build(cache): enable cache components and enumerate locale root params
+
+Turn on the cacheComponents flag and give the [locale] root param its two
+values, derived from routing.locales so it stays a single source of truth.
+
+Without at least one value the build fails before rendering starts: Cache
+Components needs a concrete param to prerender and to verify the resulting
+shell is non-empty. The build now reaches the rendering stage, where the
+remaining failures are the actual work.</pre>
+      </div>
+
+      <h2 id="s2"><span class="step-n">Step 02</span>Unblock the root layout</h2>
+
+      <div class="files">
+        <span class="file">i18n/request.ts</span>
+        <span class="file">app/[locale]/layout.tsx</span>
+      </div>
+
+      <p>This is the step that decides the chapter. From recon, the provider performs five request-config reads and caching the message import alone did not clear the error. So work it as a bisection, not as a guess.</p>
+
+      <h3>Bisect: pass every prop explicitly</h3>
+      <p>Each of the five awaits is skipped when the corresponding prop is supplied. Hoist all five into the layout so the failing one names <em>your</em> line instead of the provider's:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/[locale]/layout.tsx</span><span class="tag">probe</span></div>
+        <pre><code><span class="c">// Temporary. Whichever await blocks will now point here, and
+// --debug-prerender will name the line instead of the provider.</span>
+const messages = await getMessages();
+const timeZone = await getTimeZone();
+const formats  = await getFormats();
+const now      = await getNow();
+
+return (
+  &lt;NextIntlClientProvider
+    locale={locale} messages={messages} timeZone={timeZone}
+    formats={formats} now={now}
+  &gt;
+    {children}
+  &lt;/NextIntlClientProvider&gt;
+);</code></pre>
+      </div>
+
+      <p>Run <code>pnpm build --debug-prerender</code> and read which line it names. Then remove the probes one at a time to find the minimum set that has to be passed explicitly.</p>
+
+      <h3>The three shapes the answer can take</h3>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>If the blocker is</th><th>Then</th><th>Cost</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Only the message import</td>
+              <td>Cache <code>loadMessages</code> with <code>cacheLife('max')</code> and pass <code>messages</code> in explicitly, so the provider skips its own read</td>
+              <td>None. Messages are build-time constants.</td>
+            </tr>
+            <tr>
+              <td><code>getTimeZone()</code>, via <code>Intl.DateTimeFormat().resolvedOptions()</code></td>
+              <td>Pass a fixed <code>timeZone</code> string rather than letting it resolve from the environment</td>
+              <td>You must pick one. Server default is not a real answer anyway.</td>
+            </tr>
+            <tr>
+              <td><code>getRequestLocale()</code> reaching <code>headers()</code></td>
+              <td><code>setRequestLocale(locale)</code> already runs before the provider, so this should be populated from cache. If it is not, the ordering is wrong or the React cache is not shared with the prerender.</td>
+              <td>Investigation. This is the bad outcome.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <span class="lbl">Why <code>now</code> is the awkward one</span>
+        <p><code>now: now ?? (await getConfigNow())</code> awaits whenever the prop is undefined, and you cannot supply a real value without calling <code>new Date()</code>, which is exactly the synchronous IO the prerender rejects. If <code>now</code> turns out to be the blocker, the fix is to set a <code>now</code> in the request config so <code>getConfigNow()</code> resolves from cached config rather than to pass one from the layout.</p>
+      </div>
+
+      <div class="check">
+        <span class="lbl">Checkpoint</span>
+        <span><code>/en/login</code> and <code>/ar/login</code> build without error. If the canary route still fails, stop and finish step 02 before touching anything else.</span>
+      </div>
+
+      <h4>Commit</h4>
+      <div class="commit">
+        <pre>fix(i18n): make the message config prerenderable
+
+NextIntlClientProvider sits in the root layout and awaits five request-config
+reads before it renders. i18n/request.ts resolves those with a dynamic
+import() of the message JSON, which is uncached IO, so every route inherited
+a blocking read and no route could produce a static shell.
+
+Cache the message load and pass the resolved values to the provider
+explicitly so it skips its own reads. Message files are build-time constants,
+so 'max' is the honest lifetime.</pre>
+      </div>
+
+      <div class="note">
+        <span class="lbl">If the bisection lands somewhere else</span>
+        <p>Rewrite the second paragraph to name whichever read actually blocked. If no combination clears it, the commit becomes <code>build(cache): opt the root layout out of instant validation</code> and the body records what was tried, which is a finding rather than a failure.</p>
+      </div>
+
+      <h2 id="s3"><span class="step-n">Step 03</span>Get the locale out of the data layer</h2>
+
+      <div class="files">
+        <span class="file">app/lib/data.ts</span>
+        <span class="file">app/ui/dashboard/cards.tsx</span>
+        <span class="file">app/ui/dashboard/latest-invoices.tsx</span>
+        <span class="file">app/ui/customers/table.tsx</span>
+      </div>
+
+      <p>Chapter 17 closed with a known gap: currency and date formatting live inside <code>app/lib/data.ts</code>, which is why three data functions call <code>getLocale()</code>. That was a tidiness complaint then. Under Cache Components it is a hard blocker, because <strong>a plain <code>use cache</code> function may not read request state</strong>, and <code>getLocale()</code> is request state.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/lib/data.ts</span><span class="tag edit">current</span></div>
+        <pre><code>export async function fetchCardData() {
+  <span class="del">const locale = await getLocale();          // blocks "use cache"</span>
+  ...
+  totalPaidInvoices: <span class="del">formatCurrency(data[2][0].paid ?? "0", locale)</span>,
+}</code></pre>
+      </div>
+
+      <p>There are two ways out, and they are not equivalent.</p>
+
+      <h3>Option A: pass the locale in as an argument</h3>
+      <p>Legal, and the pattern the docs describe for runtime values. The caller reads the locale outside the cached scope and passes it down, where it becomes part of the cache key. It also means <strong>two cache entries for one query</strong>, one per locale, holding identical numbers formatted differently.</p>
+
+      <h3>Option B: return raw numbers, format in the component</h3>
+      <p>The data layer returns what the database returned. The component formats at render time, where it already has a locale. One cache entry serves both locales, the query result stops being locale-shaped, and the Chapter 17 gap closes on its own.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/lib/data.ts</span><span class="tag edit">planned</span></div>
+        <pre><code><span class="c">// Raw cents out. No getLocale(), no formatting, so the cache key is
+// the query alone and /en and /ar share one entry.</span>
+export async function fetchCardData() {
+  <span class="add">"use cache";
+  cacheLife("minutes");</span>
+  ...
+  return { numberOfCustomers, numberOfInvoices,
+           <span class="add">totalPaid, totalPending</span> };   <span class="c">// numbers, not strings</span>
+}</code></pre>
+      </div>
+
+      <p><strong>Take option B.</strong> Formatting is a presentation concern that drifted into the data layer during the course, and this is the forcing function to put it back. Three data functions lose their <code>getLocale()</code> call; the components that render their output gain a <code>formatCurrency(value, locale)</code>.</p>
+
+      <div class="note ok">
+        <span class="lbl">The transferable idea</span>
+        <p>Anything locale-shaped, user-shaped or request-shaped that you bake into a cached value multiplies your cache entries by the cardinality of that thing. Formatting inside a cached query does not just read badly, it halves the hit rate. This generalises well past i18n: currency, timezone, and per-user labels all behave the same way.</p>
+      </div>
+
+      <div class="note">
+        <span class="lbl">One thing that looks like a blocker and is not</span>
+        <p><code>formatDateToLocal</code> calls <code>new Date(dateStr)</code>. The prerender rejects <code>new Date()</code> with no arguments, because it reads the clock. Constructing a Date from a fixed string is deterministic and fine. Likewise the <code>new Date()</code> in <code>createInvoice</code> is inside a Server Action, which only ever runs at request time and is never prerendered.</p>
+      </div>
+
+      <div class="check">
+        <span class="lbl">Checkpoint</span>
+        <span><code>grep -rn "getLocale" app/lib/data.ts</code> returns nothing, and the dashboard still shows Arabic-Indic digits under <code>/ar</code>.</span>
+      </div>
+
+      <h4>Commit</h4>
+      <div class="commit">
+        <pre>refactor(data): move currency and date formatting out of the data layer
+
+Three read functions called getLocale() so they could format money and dates
+before returning. A plain "use cache" scope cannot read request state, so
+that call blocks caching outright.
+
+Return raw values and format in the components, which already have a locale.
+Passing the locale in as an argument would also work, but it becomes part of
+the cache key: one query would hold two entries per locale carrying identical
+numbers. This closes the formatting gap left open in chapter 17 and is worth
+keeping even if Cache Components were abandoned.</pre>
+      </div>
+
+      <h2 id="s4"><span class="step-n">Step 04</span><code>use cache</code> and a deliberate <code>cacheLife</code></h2>
+
+      <div class="files">
+        <span class="file">app/lib/data.ts</span>
+      </div>
+
+      <p>With the locale gone, the read functions become cacheable. Each gets the directive and an explicit lifetime. The docs recommend always calling <code>cacheLife</code> rather than letting <code>default</code> apply silently, and that matters more once scopes nest.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Profile</th><th><code>stale</code></th><th><code>revalidate</code></th><th><code>expire</code></th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>default</code></td><td>5 min</td><td>15 min</td><td>never</td></tr>
+            <tr><td><code>seconds</code></td><td>30 s</td><td>1 s</td><td>1 min</td></tr>
+            <tr><td><code>minutes</code></td><td>5 min</td><td>1 min</td><td>1 hour</td></tr>
+            <tr><td><code>hours</code></td><td>5 min</td><td>1 hour</td><td>1 day</td></tr>
+            <tr><td><code>days</code></td><td>5 min</td><td>1 day</td><td>1 week</td></tr>
+            <tr><td><code>max</code></td><td>5 min</td><td>30 days</td><td>1 year</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>The three properties answer three different questions. <code>stale</code> is how long the <em>browser's</em> router reuses what it has without asking. <code>revalidate</code> is how long before the server refreshes in the background while still serving the old value. <code>expire</code> is when the server stops serving the old value at all and the next request waits.</p>
+
+      <p>Proposed assignment, chosen from how often each thing actually changes in this app:</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Function</th><th>Profile</th><th>Because</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>fetchRevenue</code></td><td><code>max</code></td><td>Twelve rows of seed data that have never changed</td></tr>
+            <tr><td><code>fetchCardData</code></td><td><code>minutes</code></td><td>Aggregates that move whenever an invoice is written</td></tr>
+            <tr><td><code>fetchLatestInvoices</code></td><td><code>minutes</code></td><td>Same, and visibly wrong if stale for long</td></tr>
+            <tr><td><code>fetchCustomers</code></td><td><code>hours</code></td><td>Dropdown options for the invoice form</td></tr>
+            <tr><td><code>fetchInvoiceById</code>, <code>fetchCustomerById</code></td><td><code>minutes</code></td><td>Edit forms, must not show a stale amount</td></tr>
+            <tr><td><code>fetchFilteredInvoices</code>, <code>fetchFilteredCustomers</code></td><td><code>minutes</code></td><td>Keyed by query and page, so each combination caches separately</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note warn">
+        <span class="lbl">Do not cache the search results reflexively</span>
+        <p>The filtered queries take <code>query</code> and <code>currentPage</code>, and both become part of the cache key. A search box that fires per keystroke will mint a cache entry per prefix the user typed. It is bounded in a demo and unbounded in production. If the entry count looks silly, the right answer is to leave these two uncached and let them stream, which is what the Suspense boundary in step 06 is for.</p>
+      </div>
+
+      <div class="check">
+        <span class="lbl">Checkpoint</span>
+        <span>Hit <code>/en/dashboard</code> twice. The second render should not log a second round of Postgres queries for the cached functions.</span>
+      </div>
+
+      <h4>Commit</h4>
+      <div class="commit">
+        <pre>perf(data): cache read queries with use cache and explicit cache lifetimes
+
+Add "use cache" to the read paths in app/lib/data.ts, each with a cacheLife
+profile chosen from how often that data actually changes rather than left to
+the implicit default: max for the fixed revenue rows, hours for the customer
+dropdown, minutes for anything an invoice write moves.
+
+Entries are in-memory, so they do not survive a deployment or a serverless
+instance teardown. Durable storage needs "use cache: remote" and a cache
+handler this project does not have.</pre>
+      </div>
+
+      <h2 id="s5"><span class="step-n">Step 05</span>Tags, and telling the two invalidation APIs apart</h2>
+
+      <div class="files">
+        <span class="file">app/lib/data.ts</span>
+        <span class="file">app/lib/actions.ts</span>
+      </div>
+
+      <p>The app currently invalidates with six calls that all look like this:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/lib/actions.ts</span><span class="tag edit">current</span></div>
+        <pre><code>revalidatePath("/[locale]/dashboard/invoices", "page");</code></pre>
+      </div>
+
+      <p>That works and keeps working. It is also a blunt instrument: it names a route, so editing one invoice throws away the cached data for the customers page too if they happen to share a segment, and it says nothing about <em>what</em> changed. Tags name the data instead.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/lib/data.ts</span><span class="tag edit">planned</span></div>
+        <pre><code>export async function fetchFilteredInvoices(query: string, page: number) {
+  "use cache";
+  <span class="add">cacheTag("invoices");</span>
+  cacheLife("minutes");
+  ...
+}</code></pre>
+      </div>
+
+      <p>Then the choice of invalidation API, which is the part worth learning properly:</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>API</th><th>Behaviour</th><th>Use when</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>updateTag(tag)</code></td>
+              <td>Expires the tag so the next request <strong>waits</strong> for fresh data</td>
+              <td>The user just made this change and must see it. Server Actions only.</td>
+            </tr>
+            <tr>
+              <td><code>revalidateTag(tag, profile)</code></td>
+              <td>Serves the stale value while refreshing behind it</td>
+              <td>A webhook or background event. The profile argument is now required.</td>
+            </tr>
+            <tr>
+              <td><code>revalidatePath(path)</code></td>
+              <td>Unchanged from the old model</td>
+              <td>You want a whole route gone, tags or not</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Every invalidation in this app happens right after the user edited something, so all six become <code>updateTag</code>. Read-your-own-writes is exactly the case it exists for: with <code>revalidateTag</code> the user would submit the edit form, get redirected, and see their old value staring back while the refresh happened behind them.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/lib/actions.ts</span><span class="tag edit">planned</span></div>
+        <pre><code><span class="del">- revalidatePath("/[locale]/dashboard/invoices", "page");</span>
+<span class="add">+ updateTag("invoices");</span>
+  redirect({ href: "/dashboard/invoices", locale: await getLocale() });</code></pre>
+      </div>
+
+      <div class="note warn">
+        <span class="lbl">Tags are stored in plain text</span>
+        <p>Cache keys and tag names are not hashed. A cached function's arguments are serialised straight into its key, and <code>cacheTag</code> values are stored as written. Tag on stable identifiers. Never put an email, a token or anything personal in a tag or in a cached function's arguments.</p>
+      </div>
+
+      <div class="check">
+        <span class="lbl">Checkpoint</span>
+        <span>Edit an invoice amount, submit, and land on the list with the new amount already showing. Not the old one, not a flash of the old one.</span>
+      </div>
+
+      <h4>Commit</h4>
+      <div class="commit">
+        <pre>refactor(actions): replace revalidatePath with tagged cache invalidation
+
+Tag the cached queries with cacheTag and invalidate by tag instead of by
+route. The six revalidatePath calls named a path, so they threw away more
+than they had to and said nothing about what had changed.
+
+Every invalidation here follows a user edit, so all six become updateTag
+rather than revalidateTag: updateTag makes the next request wait for fresh
+data, which is what read-your-own-writes needs. revalidateTag would serve the
+stale value back to the user who just changed it.
+
+Tags are stored in plain text, so they key on stable identifiers only.</pre>
+      </div>
+
+      <h2 id="s6"><span class="step-n">Step 06</span>Push <code>searchParams</code> behind Suspense</h2>
+
+      <div class="files">
+        <span class="file">app/[locale]/dashboard/invoices/page.tsx</span>
+        <span class="file">app/[locale]/dashboard/customers/page.tsx</span>
+      </div>
+
+      <p>Both list pages await <code>searchParams</code> at the top of the component. Search params are only knowable at request time, so awaiting them there means the entire page waits, including the heading and the search box that do not depend on them at all.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/[locale]/dashboard/invoices/page.tsx</span><span class="tag edit">current</span></div>
+        <pre><code>export default async function Page(props: {...}) {
+  <span class="del">const searchParams = await props.searchParams;   // whole page waits</span>
+  const query = searchParams?.query || "";
+  const totalPages = await fetchInvoicesPages(query);
+  ...
+}</code></pre>
+      </div>
+
+      <p>The fix is to stop awaiting and start passing. The promise goes down into a child that sits inside a boundary, and the <code>await</code> happens there:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/[locale]/dashboard/invoices/page.tsx</span><span class="tag edit">planned</span></div>
+        <pre><code>export default function Page(props: {...}) {
+  return (
+    &lt;div className="w-full"&gt;
+      <span class="c">{/* heading and search box prerender into the shell */}</span>
+      &lt;h1&gt;{t("title")}&lt;/h1&gt;
+      &lt;Search placeholder={t("search")} /&gt;
+
+      <span class="add">&lt;Suspense fallback={&lt;InvoicesTableSkeleton /&gt;}&gt;
+        &lt;InvoicesResults searchParams={props.searchParams} /&gt;
+      &lt;/Suspense&gt;</span>
+    &lt;/div&gt;
+  );
+}
+
+<span class="add">async function InvoicesResults({ searchParams }) {
+  const { query, page } = await searchParams;   <span class="c">// awaited inside</span>
+  ...
+}</span></code></pre>
+      </div>
+
+      <p>The same rule applies on the client. <code>useSearchParams</code> <em>always</em> needs a boundary, because its value never exists at build time. This app calls it in four client components: <code>search.tsx</code>, <code>pagination.tsx</code>, <code>login-form.tsx</code> and <code>locale-switcher.tsx</code>. Each will need a boundary or will need the read pushed into a smaller leaf, and <code>login-form.tsx</code> is the one that matters, because it is what keeps the canary route from going fully static.</p>
+
+      <div class="note">
+        <span class="lbl">Push the read down, do not wrap the world</span>
+        <p>The temptation is to wrap the largest component in <code>&lt;Suspense&gt;</code> and move on. That works and throws away most of the benefit, because everything inside the boundary leaves the shell. The useful version is to move the read into the smallest component that genuinely needs it, so the boundary stays small.</p>
+      </div>
+
+      <div class="check">
+        <span class="lbl">Checkpoint</span>
+        <span><code>/en/dashboard/invoices</code> appears as <code>◐</code> (partially prerendered) rather than <code>ƒ</code> in the build output.</span>
+      </div>
+
+      <h4>Commit</h4>
+      <div class="commit">
+        <pre>perf(invoices,customers): stream search results behind suspense boundaries
+
+Both list pages awaited searchParams at the top of the component, so the
+heading and the search box waited on a value neither of them uses. Pass the
+promise into a child inside a Suspense boundary and await it there, leaving
+the static parts of the page in the shell.
+
+Client components reading useSearchParams get the same treatment, since that
+hook can never resolve at build time. The read is pushed into the smallest
+component that needs it rather than wrapping a large one, which would put
+everything inside it back outside the shell.</pre>
+      </div>
+
+      <h2 id="s7"><span class="step-n">Step 07</span>The session read, and <code>use cache: private</code></h2>
+
+      <div class="files">
+        <span class="file">app/ui/dashboard/sidenav.tsx</span>
+        <span class="file">app/[locale]/dashboard/layout.tsx</span>
+      </div>
+
+      <p>This is where a login-walled app differs from the blog examples in the docs. A session read is a cookie read, so it can never be in the static shell. It always streams. The question is only how much of the page it drags with it.</p>
+
+      <p><code>SideNav</code> is rendered by the dashboard layout and awaits <code>getLocale()</code> and <code>getTranslations()</code> at its top level. A top-level await in a layout holds the whole segment, <code>{children}</code> included, behind that request. Whatever the page below was going to prerender, it now cannot.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/[locale]/dashboard/layout.tsx</span><span class="tag edit">planned</span></div>
+        <pre><code>&lt;div className="w-full flex-none md:w-64"&gt;
+  <span class="add">&lt;Suspense fallback={&lt;SideNavSkeleton /&gt;}&gt;</span>
+    &lt;SideNav /&gt;
+  <span class="add">&lt;/Suspense&gt;</span>
+&lt;/div&gt;
+&lt;div className="grow p-6 md:overflow-y-auto md:p-12"&gt;{children}&lt;/div&gt;</code></pre>
+      </div>
+
+      <p>For anything derived from the session there is a third directive worth knowing:</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th></th><th><code>use cache</code></th><th><code>use cache: private</code></th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Can read <code>cookies()</code> / <code>headers()</code></td><td>No</td><td>Yes</td></tr>
+            <tr><td>Can read <code>searchParams</code></td><td>No</td><td>Yes</td></tr>
+            <tr><td>Can call <code>connection()</code></td><td>No</td><td>No</td></tr>
+            <tr><td>Stored on the server</td><td>Yes</td><td><strong>Never</strong></td></tr>
+            <tr><td>Survives a page reload</td><td>Yes</td><td>No, browser memory only</td></tr>
+            <tr><td>In the static shell</td><td>Yes</td><td>No, runs every render</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>The shape the docs recommend, and the one to follow here: resolve the user inside a private scope, then pass only the <em>id</em> into a plain cached function. The session read stays private and browser-only; the data it points at gets cached on the server under a key that is just an id.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">the pattern</span><span class="tag">reference</span></div>
+        <pre><code>export async function getCurrentUser() {
+  <span class="add">"use cache: private";</span>          <span class="c">// may read cookies()</span>
+  const { userId } = await getSession();
+  if (!userId) redirect("/login");   <span class="c">// throws, so never cached</span>
+  return { id: userId };
+}
+
+export async function getNotes() {
+  const user = await getCurrentUser();
+  return getNotesByUserId(user.id);  <span class="c">// id only, not the session</span>
+}
+
+async function getNotesByUserId(userId: string) {
+  <span class="add">"use cache";</span>                      <span class="c">// server-side, keyed by id</span>
+  cacheTag(`notes:${userId}`);
+  cacheLife("minutes");
+  ...
+}</code></pre>
+      </div>
+
+      <div class="note">
+        <span class="lbl">Keep the inner function unexported</span>
+        <p><code>getNotesByUserId</code> is not exported on purpose. If it were, any caller could pass someone else's id and read their data. Resolving the user inside the exported wrapper is the thing that makes the id safe to trust.</p>
+      </div>
+
+      <p>This app does not currently fetch anything per-user (every invoice belongs to the one demo account), so step 07 is mostly about the <code>SideNav</code> boundary. The private-cache pattern is written down here because it is the piece that generalises, and because the next app will need it.</p>
+
+      <div class="check">
+        <span class="lbl">Checkpoint</span>
+        <span>Logged out, <code>/en/dashboard</code> still redirects to <code>/en/login</code>. The two bypasses from Chapter 17 stay fixed. Re-test this against a running server, not by reading <code>proxy.ts</code>.</span>
+      </div>
+
+      <h4>Commit</h4>
+      <div class="commit">
+        <pre>perf(dashboard): stream the sidenav behind a suspense boundary
+
+SideNav awaits getLocale() and getTranslations() at its top level, and a
+top-level await in a layout holds the whole segment behind that request,
+{children} included. Every page under the dashboard lost its shell to it.
+
+Wrap it in Suspense with a skeleton so the layout frame and the page below
+prerender while the nav streams. Verified logged out against a running
+server, since both auth bypasses in chapter 17 passed tsc and the build.</pre>
+      </div>
+
+      <h2 id="s8"><span class="step-n">Step 08</span>Measure it, or the chapter did not happen</h2>
+
+      <p>The deliverable is a diff in the build output, and it needs to be recorded rather than described.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Symbol</th><th>Meaning</th><th>Before</th><th>Target</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>○</code></td><td>Fully prerendered</td><td>1 (the 404)</td><td>login, home</td></tr>
+            <tr><td><code>◐</code></td><td>Shell prerendered, rest streams</td><td>0</td><td>the dashboard routes</td></tr>
+            <tr><td><code>ƒ</code></td><td>Rendered on demand</td><td>11</td><td>as few as possible</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Three things to capture, in this order:</p>
+      <ol class="body-list">
+        <li>The route table before and after, verbatim, in the chapter's build record.</li>
+        <li>The count of routes with a non-empty shell. This is the honest headline number.</li>
+        <li>Whether any route still needs <code>instant = false</code>, and why. A route that had to opt out is a finding, not a failure, but it has to be named.</li>
+      </ol>
+
+      <div class="note warn">
+        <span class="lbl">What this step is not</span>
+        <p>It is not an LCP number. Measuring real-world load time needs a deployed build, a throttled connection, and a page a crawler or a cold visitor can actually reach. That is its own chapter, and pretending a local build table is a performance result would be the easiest way to put a number on a CV that does not survive being asked about.</p>
+      </div>
+
+      <h4>Commit</h4>
+      <div class="commit">
+        <pre>docs(ch18): rewrite the chapter as a build record
+
+Replace the plan with what actually happened: the before and after route
+tables verbatim, the count of routes that ended up with a non-empty static
+shell, and any route still carrying instant = false along with the reason.
+
+Records what the plan got wrong, in the same shape as chapter 17.</pre>
+      </div>
+
+      <h2 id="escape">The escape hatch, and when using it is correct</h2>
+
+      <p>Any segment can decline validation:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">any page, layout or default</span><span class="tag">reference</span></div>
+        <pre><code>export const instant = false;</code></pre>
+      </div>
+
+      <p>It marks a segment as allowed to block. Three things it does <strong>not</strong> do, all of which are easy to assume:</p>
+      <ul>
+        <li>It does not force the route to be dynamic. A route that can still prerender a shell will still ship one.</li>
+        <li>It does not silence synchronous IO errors. <code>new Date()</code>, <code>Math.random()</code> and <code>crypto.randomUUID()</code> during prerender still fail the build, opted out or not.</li>
+        <li>It does not hide anything at runtime. An offending route returns 200 with correct HTML in dev either way; validation insights only appear in the dev overlay and the dev-server log, never in the response.</li>
+      </ul>
+
+      <p>Using it on a route whose blocker is understood and deliberately deferred is fine. Using it to make the build go green without reading the error is how the whole feature gets wasted.</p>
+
+      <h2 id="risks">What could go wrong</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Risk</th><th>Signal</th><th>Response</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>next-intl's provider cannot prerender at all</td>
+              <td>Step 02 bisection finds no combination that clears the error</td>
+              <td>Write it up as the finding, opt the root layout out, and keep the rest of the chapter. A negative result about a library at a specific version is worth publishing.</td>
+            </tr>
+            <tr>
+              <td>Cache entries explode on the search routes</td>
+              <td>Distinct keys growing with every keystroke</td>
+              <td>Leave the filtered queries uncached. The Suspense boundary already covers them.</td>
+            </tr>
+            <tr>
+              <td>UI state persists where it used to reset</td>
+              <td>A dropdown stays open after navigating away and back; a submitted form still shows its old success message</td>
+              <td>Expected. Cache Components keeps routes mounted with React <code>&lt;Activity&gt;</code> in hidden mode instead of unmounting them. Reset explicitly, or derive the state from the URL.</td>
+            </tr>
+            <tr>
+              <td>The auth guard regresses</td>
+              <td>Nothing. It will look fine.</td>
+              <td>This is the Chapter 17 lesson. Both bypasses passed <code>tsc</code>, passed the build and read as correct. Test logged out against a running server after every step that touches the layout or the proxy.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="commits">Commit discipline</h2>
+
+      <p>Every step above ends with its own commit message, written out in full at the point you would use it. The rule for this chapter is <strong>one step, one commit</strong>, and the trigger is the checkpoint: if the checkpoint passes, commit before starting the next step.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Step</th><th>Commit</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>01</td><td><code>build(cache):</code> enable cache components and enumerate locale root params</td></tr>
+            <tr><td>02</td><td><code>fix(i18n):</code> make the message config prerenderable</td></tr>
+            <tr><td>03</td><td><code>refactor(data):</code> move currency and date formatting out of the data layer</td></tr>
+            <tr><td>04</td><td><code>perf(data):</code> cache read queries with use cache and explicit cache lifetimes</td></tr>
+            <tr><td>05</td><td><code>refactor(actions):</code> replace revalidatePath with tagged cache invalidation</td></tr>
+            <tr><td>06</td><td><code>perf(invoices,customers):</code> stream search results behind suspense boundaries</td></tr>
+            <tr><td>07</td><td><code>perf(dashboard):</code> stream the sidenav behind a suspense boundary</td></tr>
+            <tr><td>08</td><td><code>docs(ch18):</code> rewrite the chapter as a build record</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <span class="lbl">Why eight and not one</span>
+        <p>Chapter 17 shipped as two commits because none of it was committed incrementally, and the write-up had to admit it: every RTL pass, translation and typed-href fix flattened into a single 45-file diff that nobody could review. This chapter is committed as it goes so that does not happen again.</p>
+        <p>Step 03 earns its own commit twice over. It touches the data layer and four components, and it is the one change here worth keeping even if Cache Components were abandoned entirely, so it should be revertible without taking the caching work with it.</p>
+      </div>
+
+      <div class="note warn">
+        <span class="lbl">Steps that may not produce a commit</span>
+        <p>Step 02 is a bisection, so it may end in <code>build(cache): opt the root layout out of instant validation</code> instead of a fix. Step 04 may end with the filtered queries deliberately left uncached. Either way the commit body records the decision and the reason, because a step that changed nothing still produced a finding.</p>
+      </div>
+
+      <h2 id="honest">What this chapter isn't</h2>
+
+      <div class="verdict">
+        <h3>A static shell on a login wall has a ceiling</h3>
+        <p>Almost everything in this app sits behind authentication. A session read cannot be prerendered, so on the dashboard routes the shell is the chrome: the sidebar frame, the headings, the skeletons. The numbers, the tables and the charts still cost a request. That is a genuine improvement to perceived load, and it is not the same as a static site.</p>
+        <p>The routes that stand to gain most are the two nobody looks at: the login page and the home page. Which is a fair description of the whole app's SEO story, and was already said plainly in Chapter 17.</p>
+        <p>What makes this chapter worth doing anyway is that the model is the direction the framework has committed to, and it is genuinely inverted from what the course taught. Learning it on eleven routes with a bilingual layer and an auth guard already in place is a better exercise than learning it on a blog, because the awkward parts, a provider in the root layout, a session read in a shared sidebar, formatting that leaked into the data layer, are the parts a real app has and a tutorial does not.</p>
+        <p>And the honest headline is a build-output diff, not a performance claim. The performance claim needs a deployed build and a throttled measurement, and that is the next chapter.</p>
+      </div>
+
+      <h3>Next chapter</h3>
+      <p>Measurement. A deployed build, a cold cache, a throttled connection, and an actual number, so that Chapter 18's route table can be checked against something a user would feel.</p>
+
+    </div>
+  </main>
+</div>
+</body>
+</html>

@@ -43,6 +43,13 @@
       "description": "Adding /en and /ar routing plus Arabic RTL to the Acme dashboard.",
       "url": "https://anashany2193.github.io/nextjs-learn-dashboard/chapter-17-i18n-rtl/",
       "author": { "@type": "Person", "name": "Anas Hany" }
+    },
+    {
+      "@type": "BlogPosting",
+      "headline": "Cache Components and the static shell",
+      "description": "Adopting Next 16 Cache Components on a bilingual, login-walled dashboard: use cache, cacheLife, cacheTag and the static shell.",
+      "url": "https://anashany2193.github.io/nextjs-learn-dashboard/chapter-18-cache-components/",
+      "author": { "@type": "Person", "name": "Anas Hany" }
     }
   ]
 }
@@ -634,6 +641,17 @@
         </div>
         <h2>Bilingual routing and Arabic RTL</h2>
         <p>Fifteen route files moved under a <code>[locale]</code> segment, next-intl's locale detection composed with next-auth in one <code>proxy.ts</code>, eighty physical-direction Tailwind utilities replaced with logical ones, and real Arabic URL slugs — <code>/ar/الفواتير</code>, not <code>/ar/dashboard/invoices</code>. Includes the two authentication bypasses that only surfaced because the routes were tested live rather than re-read.</p>
+      </a>
+    </li>
+
+    <li class="chapter">
+      <a class="card-link" href="./chapter-18-cache-components/">
+        <div class="chapter-top">
+          <span class="chapter-n">Chapter 18</span>
+          <span class="status planned">Plan</span>
+        </div>
+        <h2>Cache Components and the static shell</h2>
+        <p>Eleven of eleven routes are server-rendered on demand, and the only static thing in the build output is the 404 page. Next 16 inverts the caching model: nothing is cached unless you say so, and the build refuses to pass until every uncached read is either wrapped in <code>use cache</code> or pushed behind a Suspense boundary. Includes the reconnaissance run that found one component in the root layout blocking all eighteen prerender paths at once.</p>
       </a>
     </li>
   </ul>

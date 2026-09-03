@@ -136,6 +136,25 @@
     max-height: 100vh;
     overflow-y: auto;
   }
+  /* ---------- back to index ---------- */
+  .rail .rail-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    margin: 0 0 18px;
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-decoration: none;
+    border-inline-start: 0;
+  }
+  .rail .rail-back:hover { background: none; color: var(--accent-ink); }
+  .rail .rail-back:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+  .rail .rail-back .arrow { font-size: 13px; line-height: 1; }
+
   .rail-title {
     font-family: var(--f-mono);
     font-size: 11px;
@@ -484,6 +503,7 @@
 <div class="shell">
 
   <nav class="rail" aria-label="Chapter contents">
+    <a class="rail-back" href="../"><span class="arrow" aria-hidden="true">&larr;</span><span>All chapters</span></a>
     <p class="rail-title">Chapter 18 · Plan v2</p>
     <ol>
       <li><a href="#rewrite"><span class="n">·</span><span>Why this was rewritten</span></a></li>
@@ -518,6 +538,25 @@
       <p class="eyebrow">Self-directed · Chapter 18 · Plan, second draft</p>
       <h1>Cache Components and the static shell</h1>
       <p class="standfirst">Every route in this app is server-rendered on demand. Eleven of eleven. Next 16's Cache Components model can turn most of that into a prerendered shell, with only the genuinely per-request parts streaming in behind it. This is the second draft of the plan, written after the first one stalled on its own step 02 for an entire session.</p>
+
+      <div class="note">
+        <span class="lbl">Before you start</span>
+        <p><strong>Start from:</strong> the <code>chapter-17-i18n-rtl</code> branch. <strong>Chapter 17 is a hard prerequisite.</strong> That is unusually literal here: the first thing Cache Components does is refuse to build until <code>[locale]</code>, the root dynamic segment Chapter 17 introduced, is given concrete values. Steps 01 and 02 exist almost entirely because of Chapter 17's i18n layer.</p>
+        <div class="code">
+          <div class="code-head"><span class="path">Terminal</span><span class="tag">setup</span></div>
+          <pre><code>git checkout chapter-17-i18n-rtl
+pnpm install
+pnpm build   <span class="c"># baseline: 11 of 11 routes dynamic, only the 404 is static</span></code></pre>
+        </div>
+        <p><strong>What you already know</strong> after Chapter 17: routes live under <code>app/[locale]/</code>, <code>i18n/routing.ts</code> is the single source of truth for locales and slugs, navigation is imported from <code>@/i18n/navigation</code>, and auth is enforced in <code>proxy.ts</code> rather than in a callback.</p>
+        <p><strong>What is new here:</strong> an inversion of everything the course taught about caching. Previously a route was static until something made it dynamic. Now <em>nothing</em> is cached unless you say so, and the build refuses to pass until every uncached read is either given a lifetime with <code>use cache</code> or pushed behind a <code>&lt;Suspense&gt;</code> boundary.</p>
+        <p><strong>Where this chapter stands:</strong> steps 01 to 03 are already implemented on <code>main</code>. Step 03 is one edit short of its checkpoint, and finishing it is your first task. Steps 04 to 08 are designed but not implemented.</p>
+      </div>
+
+      <div class="note warn">
+        <span class="lbl">This chapter reads differently from 16 and 17</span>
+        <p>Those two are build records, written after the fact. This one is a working plan written partly ahead of the work, and it keeps its own mistakes visible rather than tidying them away: the first draft ordered its steps wrongly and stalled, and the retrospective explaining why is kept as a section. If you are reading for a clean recipe, that will feel untidy. It is deliberate, because the reason the first plan failed is the most transferable thing in the chapter.</p>
+      </div>
 
       <div class="note warn">
         <span class="lbl">This document was rewritten mid-build</span>

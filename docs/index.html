@@ -610,7 +610,7 @@
   <p class="eyebrow">Next.js Learn · self-directed</p>
   <h1>Beyond the Next.js course</h1>
 
-  <p class="lede">The official Next.js Learn course builds the Acme dashboard and stops at fifteen chapters. These are the chapters after that — written while extending the same app, each one documenting the bugs found along the way rather than a clean happy path.</p>
+  <p class="lede">The official Next.js Learn course builds the Acme dashboard and stops at fifteen chapters. These are the chapters after that, written while extending the same app, each one documenting the bugs found along the way rather than a clean happy path.</p>
 
   <p class="lede">Built on Next 16.3.3, React 19.2.8, Tailwind 3.4, Postgres on Neon, and next-auth v5 beta.</p>
 
@@ -621,6 +621,24 @@
     <span class="pill">React 19.2.8</span>
   </div>
 
+  <div class="note">
+    <span class="lbl">How to follow these</span>
+    <p>Each chapter has a matching branch holding the state you should <em>start</em> from, so you can pick up anywhere without replaying the ones before it. They build on each other in order, and each chapter opens with a "Before you start" block naming its branch and prerequisite.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Start from this branch</th><th>To follow</th><th>Which gets you to</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>course-complete</code></td><td>Chapter 16</td><td><code>chapter-16-finish-project</code></td></tr>
+          <tr><td><code>chapter-16-finish-project</code></td><td>Chapter 17</td><td><code>chapter-17-i18n-rtl</code></td></tr>
+          <tr><td><code>chapter-17-i18n-rtl</code></td><td>Chapter 18</td><td><code>main</code>, in progress</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><code>course-complete</code> is the finished official course with two bug fixes applied. If you have just completed the Next.js Learn course yourself, that is where you are standing.</p>
+  </div>
+
   <ul class="chapters">
     <li class="chapter">
       <a class="card-link" href="./chapter-16-finish-project/">
@@ -629,7 +647,7 @@
           <span class="status built">Built</span>
         </div>
         <h2>Finish the project</h2>
-        <p>The course ends with a stub page, a fully-written component nobody imports, and a login screen whose password is hidden in a code comment. Closing all three, then giving customers the create, edit and delete that invoices already had — including the missing foreign key that lets one delete quietly desync the dashboard.</p>
+        <p>The course ends with a stub page, a fully-written component nobody imports, and a login screen whose password is hidden in a code comment. Closing all three, then giving customers the create, edit and delete that invoices already had, including the missing foreign key that lets one delete quietly desync the dashboard.</p>
       </a>
     </li>
 
@@ -640,7 +658,7 @@
           <span class="status built">Built</span>
         </div>
         <h2>Bilingual routing and Arabic RTL</h2>
-        <p>Fifteen route files moved under a <code>[locale]</code> segment, next-intl's locale detection composed with next-auth in one <code>proxy.ts</code>, eighty physical-direction Tailwind utilities replaced with logical ones, and real Arabic URL slugs — <code>/ar/الفواتير</code>, not <code>/ar/dashboard/invoices</code>. Includes the two authentication bypasses that only surfaced because the routes were tested live rather than re-read.</p>
+        <p>Fifteen route files moved under a <code>[locale]</code> segment, next-intl's locale detection composed with next-auth in one <code>proxy.ts</code>, eighty physical-direction Tailwind utilities replaced with logical ones, and real Arabic URL slugs, <code>/ar/الفواتير</code>, not <code>/ar/dashboard/invoices</code>. Includes the two authentication bypasses that only surfaced because the routes were tested live rather than re-read.</p>
       </a>
     </li>
 

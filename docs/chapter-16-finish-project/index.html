@@ -139,6 +139,25 @@
     max-height: 100vh;
     overflow-y: auto;
   }
+  /* ---------- back to index ---------- */
+  .rail .rail-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    margin: 0 0 18px;
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-decoration: none;
+    border-inline-start: 0;
+  }
+  .rail .rail-back:hover { background: none; color: var(--accent-ink); }
+  .rail .rail-back:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+  .rail .rail-back .arrow { font-size: 13px; line-height: 1; }
+
   .rail-title {
     font-family: var(--f-mono);
     font-size: 11px;
@@ -487,23 +506,24 @@
 <div class="shell">
 
   <nav class="rail" aria-label="Chapter contents">
+    <a class="rail-back" href="../"><span class="arrow" aria-hidden="true">&larr;</span><span>All chapters</span></a>
     <p class="rail-title">Chapter 16</p>
     <ol>
-      <li><a href="#audit"><span class="n">—</span><span>The audit</span></a></li>
+      <li><a href="#audit"><span class="n">·</span><span>The audit</span></a></li>
       <li><a href="#s1"><span class="n">01</span><span>Wire the customers page</span></a></li>
       <li><a href="#s2"><span class="n">02</span><span>Make search stream</span></a></li>
       <li><a href="#s3"><span class="n">03</span><span>Show the demo login</span></a></li>
-      <li><a href="#s4"><span class="n">04</span><span>Paginate — and the count bug</span></a></li>
+      <li><a href="#s4"><span class="n">04</span><span>Paginate, and the count bug</span></a></li>
       <li class="sep">CRUD</li>
       <li><a href="#s5"><span class="n">05</span><span>Two components first</span></a></li>
       <li><a href="#s6"><span class="n">06</span><span>Create a customer</span></a></li>
       <li><a href="#s7"><span class="n">07</span><span>Edit a customer</span></a></li>
-      <li><a href="#s8"><span class="n">08</span><span>Delete — and the missing key</span></a></li>
+      <li><a href="#s8"><span class="n">08</span><span>Delete, and the missing key</span></a></li>
       <li class="sep">After</li>
-      <li><a href="#shared"><span class="n">—</span><span>Shared refactors</span></a></li>
-      <li><a href="#gaps"><span class="n">—</span><span>Known gaps</span></a></li>
-      <li><a href="#commit"><span class="n">—</span><span>Commit</span></a></li>
-      <li><a href="#next"><span class="n">—</span><span>Next chapter</span></a></li>
+      <li><a href="#shared"><span class="n">·</span><span>Shared refactors</span></a></li>
+      <li><a href="#gaps"><span class="n">·</span><span>Known gaps</span></a></li>
+      <li><a href="#commit"><span class="n">·</span><span>Commit</span></a></li>
+      <li><a href="#next"><span class="n">·</span><span>Next chapter</span></a></li>
     </ol>
   </nav>
 
@@ -512,7 +532,27 @@
 
       <p class="eyebrow">Self-directed · Chapter 16</p>
       <h1>Finish the project</h1>
-      <p class="standfirst">The course ends with a stub page, a fully-written component nobody imports, and a login screen whose password is hidden in a code comment. Close all three — then give customers the create, edit and delete that invoices already had, and find the schema gap that makes deleting dangerous.</p>
+      <p class="standfirst">The course ends with a stub page, a fully-written component nobody imports, and a login screen whose password is hidden in a code comment. Close all three, then give customers the create, edit and delete that invoices already had, and find the schema gap that makes deleting dangerous.</p>
+
+      <div class="note">
+        <span class="lbl">Before you start</span>
+        <p><strong>Start from:</strong> the <code>course-complete</code> branch, which is the finished Next.js Learn dashboard with two bug fixes applied. If you have just finished the official course, your own code should match it closely.</p>
+        <div class="code">
+          <div class="code-head"><span class="path">Terminal</span><span class="tag">setup</span></div>
+          <pre><code>git checkout course-complete
+pnpm install
+cp .env.example .env.local   <span class="c"># then fill in POSTGRES_URL and AUTH_SECRET</span>
+pnpm dev</code></pre>
+        </div>
+        <p><strong>What you already know</strong> coming out of the core course: the App Router, Server and Client Components, Server Actions with <code>useActionState</code>, a Postgres data layer split into <code>app/lib/data.ts</code> for reads and <code>app/lib/actions.ts</code> for writes, Zod validation, and next-auth v5 credentials login.</p>
+        <p><strong>What is new here:</strong> nothing conceptually. That is deliberate. This chapter is a consolidation chapter: it finishes features the course deliberately left half-built, and the value is in noticing <em>why</em> they were left that way and what breaks when you finish them. The one genuinely new idea is a schema-level one, in step 08.</p>
+        <p><strong>You finish at:</strong> the <code>chapter-16-finish-project</code> branch. Compare against it any time with <code>git diff chapter-16-finish-project</code>.</p>
+      </div>
+
+      <div class="note warn">
+        <span class="lbl">Chapter order</span>
+        <p>This is the first of three self-directed chapters that continue past the course. Chapter 17 assumes you have finished this one, because it moves every route file this chapter creates. Chapter 18 assumes Chapter 17. Following them out of order will not work cleanly.</p>
+      </div>
 
       <div class="learn">
         <h4>In this chapter</h4>
@@ -521,7 +561,7 @@
           <li>Move its data fetch into the table so search <strong>streams</strong> instead of blocking</li>
           <li>Learn why a <code>&lt;Suspense&gt;</code> boundary in the wrong place breaks a search input</li>
           <li>Surface the demo credentials on the login page, where a visitor can actually see them</li>
-          <li>Paginate the list — and find the count query that ignores the search term</li>
+          <li>Paginate the list, and find the count query that ignores the search term</li>
           <li>Build a <strong>picture picker</strong>, and learn why <code>&lt;select&gt;</code> can't do it</li>
           <li>Build <strong>create, edit and delete</strong> against the invoices pattern already in the repo</li>
           <li>Find the missing foreign key that lets one delete quietly corrupt your dashboard</li>
@@ -539,7 +579,7 @@
           <tbody>
             <tr><td><code>app/dashboard/customers/page.tsx</code></td><td>Two lines. Returns <code>&lt;p&gt;Customer Page&lt;/p&gt;</code>.</td></tr>
             <tr><td><code>app/ui/customers/table.tsx</code></td><td>~130 lines, complete, responsive, <strong>never imported</strong>.</td></tr>
-            <tr><td><code>app/lib/data.ts</code></td><td><code>fetchFilteredCustomers()</code> — written, tested by nobody, <strong>never called</strong>.</td></tr>
+            <tr><td><code>app/lib/data.ts</code></td><td><code>fetchFilteredCustomers()</code>, written, tested by nobody, <strong>never called</strong>.</td></tr>
             <tr><td><code>app/ui/customers/table.tsx:5</code></td><td>Imports <code>CustomersTableType</code> and never uses it.</td></tr>
             <tr><td><code>app/ui/login-form.tsx:19</code></td><td>The demo credentials, in a <code>//</code> comment. Invisible in the browser.</td></tr>
             <tr><td><code>app/ui/skeletons.tsx</code></td><td>Has <code>InvoicesTableSkeleton</code>. No customers equivalent.</td></tr>
@@ -547,14 +587,14 @@
         </table>
       </div>
 
-      <p>Steps 1–4 connect what's already written. Steps 5–8 are the half the course never built at all: customers are read-only in the finished project, while invoices got a full create/edit/delete. This chapter closes that gap.</p>
+      <p>Steps 1-4 connect what's already written. Steps 5-8 are the half the course never built at all: customers are read-only in the finished project, while invoices got a full create/edit/delete. This chapter closes that gap.</p>
 
       <h2 id="s1"><span class="step-n">STEP 01</span>Wire the customers page</h2>
       <div class="files">
         <span class="file">app/dashboard/customers/page.tsx</span>
       </div>
 
-      <p>Start with the smallest thing that works. The table takes a <code>customers</code> prop, and <code>fetchFilteredCustomers</code> already returns exactly that shape — currency formatted, sorted by name.</p>
+      <p>Start with the smallest thing that works. The table takes a <code>customers</code> prop, and <code>fetchFilteredCustomers</code> already returns exactly that shape, currency formatted, sorted by name.</p>
 
       <div class="code">
         <div class="code-head"><span class="path">app/dashboard/customers/page.tsx</span><span class="tag edit">edit</span></div>
@@ -580,7 +620,7 @@ export default async function Page(props: {
 
       <div class="note">
         <span class="lbl">The title is free</span>
-        <p><code>app/dashboard/layout.tsx</code> already declares <code>template: "%s | Acme Dashboard"</code>, so <code>title: "Customers"</code> renders as <em>Customers | Acme Dashboard</em>. You built that machinery in the SEO commit — this is the first page to reuse it.</p>
+        <p><code>app/dashboard/layout.tsx</code> already declares <code>template: "%s | Acme Dashboard"</code>, so <code>title: "Customers"</code> renders as <em>Customers | Acme Dashboard</em>. You built that machinery in the SEO commit, this is the first page to reuse it.</p>
       </div>
 
       <div class="check">
@@ -595,7 +635,7 @@ export default async function Page(props: {
         <span class="file">app/ui/skeletons.tsx</span>
       </div>
 
-      <p>Right now the page <code>await</code>s the query before rendering anything. Every keystroke blanks the screen until Postgres answers — the exact waterfall the invoices chapter taught you to break with <code>&lt;Suspense&gt;</code>.</p>
+      <p>Right now the page <code>await</code>s the query before rendering anything. Every keystroke blanks the screen until Postgres answers, the exact waterfall the invoices chapter taught you to break with <code>&lt;Suspense&gt;</code>.</p>
 
       <p>So wrap the table in a boundary. Except the table looks like this:</p>
 
@@ -610,10 +650,10 @@ export default async function Page(props: {
 
       <div class="note warn">
         <span class="lbl">This is the trap</span>
-        <p>The search input lives <em>inside</em> the component you're about to suspend. Wrap this in <code>&lt;Suspense&gt;</code> and every keystroke swaps the whole subtree — input included — for the fallback. React unmounts the real input, so <strong>the field loses focus and your cursor after one character</strong>. It looks like a debounce bug. It isn't.</p>
+        <p>The search input lives <em>inside</em> the component you're about to suspend. Wrap this in <code>&lt;Suspense&gt;</code> and every keystroke swaps the whole subtree, input included, for the fallback. React unmounts the real input, so <strong>the field loses focus and your cursor after one character</strong>. It looks like a debounce bug. It isn't.</p>
       </div>
 
-      <p>The fix is structural: anything that must survive the reload goes <em>outside</em> the boundary. Hoist the heading and the search box into the page, and give the table the <code>query</code> so it can fetch its own data — the same shape <code>app/dashboard/invoices/page.tsx</code> already uses.</p>
+      <p>The fix is structural: anything that must survive the reload goes <em>outside</em> the boundary. Hoist the heading and the search box into the page, and give the table the <code>query</code> so it can fetch its own data, the same shape <code>app/dashboard/invoices/page.tsx</code> already uses.</p>
 
       <div class="code">
         <div class="code-head"><span class="path">app/dashboard/customers/page.tsx</span><span class="tag edit">edit</span></div>
@@ -635,11 +675,11 @@ export default async function Page(props: {
 
       <p>The table now owns its fetch. Its signature changes from a prop to a query, and the three things you hoisted come out of its JSX.</p>
 
-      <p>Last piece: the fallback. Model it on <code>InvoicesTableSkeleton</code>, but the customers table has five data columns — Name, Email, Total Invoices, Total Pending, Total Paid.</p>
+      <p>Last piece: the fallback. Model it on <code>InvoicesTableSkeleton</code>, but the customers table has five data columns, Name, Email, Total Invoices, Total Pending, Total Paid.</p>
 
       <div class="note warn">
         <span class="lbl">Count the cells twice</span>
-        <p>A skeleton is a table too. If its <code>&lt;thead&gt;</code> declares six columns and its row component only renders five <code>&lt;td&gt;</code>, the loading state is visibly one column short of the real thing — and nothing in TypeScript or the linter will tell you. Come back and re-count after step 08 adds the actions column.</p>
+        <p>A skeleton is a table too. If its <code>&lt;thead&gt;</code> declares six columns and its row component only renders five <code>&lt;td&gt;</code>, then the loading state is visibly one column short of the real thing, and nothing in TypeScript or the linter will tell you. Come back and re-count after step 08 adds the actions column.</p>
       </div>
 
       <div class="check">
@@ -653,7 +693,7 @@ export default async function Page(props: {
         <span class="file">app/ui/login-form.tsx</span>
       </div>
 
-      <p>The credentials exist. They're on lines 19–20 of <code>login-form.tsx</code>, as a comment — which helps you, in your editor, and nobody who opens the deployed site. Delete the comment and put them on the page instead, under the form.</p>
+      <p>The credentials exist. They're on lines 19-20 of <code>login-form.tsx</code>, as a comment, which helps you, in your editor, and nobody who opens the deployed site. Delete the comment and put them on the page instead, under the form.</p>
 
       <div class="code">
         <div class="code-head"><span class="path">app/login/page.tsx</span><span class="tag edit">edit</span></div>
@@ -673,7 +713,7 @@ export default async function Page(props: {
         <p>None of that survives contact with a real app. The moment there's a real user in that table, this block comes out.</p>
       </div>
 
-      <h2 id="s4"><span class="step-n">STEP 04</span>Paginate — and the count bug</h2>
+      <h2 id="s4"><span class="step-n">STEP 04</span>Paginate, and the count bug</h2>
       <div class="files">
         <span class="file">app/lib/data.ts</span>
         <span class="file">app/ui/pagination.tsx</span>
@@ -691,19 +731,19 @@ pages               1   <span class="c">// nothing to click</span></code></pre>
       </div>
 
       <div class="note">
-        <span class="lbl">Build it anyway — step 06 is about to break the tie</span>
+        <span class="lbl">Build it anyway, step 06 is about to break the tie</span>
         <p>Six customers at six per page is exactly one page, so pagination is unverifiable <em>today</em>. It stops being unverifiable the moment you create a seventh customer, which is precisely what step 06 does. Build the pagination now, then come back and confirm it after your first create.</p>
-        <p>The alternative — seed more rows first — works too. What doesn't work is building it, seeing one page, and calling it done.</p>
+        <p>The alternative, seed more rows first, works too. What doesn't work is building it, seeing one page, and calling it done.</p>
       </div>
 
       <p>Give <code>fetchFilteredCustomers</code> a <code>currentPage</code>, add <code>LIMIT</code>/<code>OFFSET</code>, write <code>fetchCustomersPages</code>, and key the boundary on <code>query + currentPage</code> the way the invoices page does.</p>
 
       <div class="note">
         <span class="lbl">Move Pagination up a level</span>
-        <p><code>Pagination</code> lives in <code>app/ui/invoices/</code> but has nothing invoice-specific in it — it reads <code>usePathname()</code> and rewrites a <code>page</code> search param. Two consumers now, so <code>git mv</code> it to <code>app/ui/pagination.tsx</code>.</p>
+        <p><code>Pagination</code> lives in <code>app/ui/invoices/</code> but has nothing invoice-specific in it, it reads <code>usePathname()</code> and rewrites a <code>page</code> search param. Two consumers now, so <code>git mv</code> it to <code>app/ui/pagination.tsx</code>.</p>
       </div>
 
-      <p>Then copy <code>fetchInvoicesPages</code> as the model for the count query — and read what you copied, because this is where it goes wrong:</p>
+      <p>Then copy <code>fetchInvoicesPages</code> as the model for the count query, and read what you copied, because this is where it goes wrong:</p>
 
       <div class="code">
         <div class="code-head"><span class="path">app/lib/data.ts</span><span class="tag">the bug</span></div>
@@ -755,10 +795,10 @@ pages               1   <span class="c">// nothing to click</span></code></pre>
 
       <div class="note warn">
         <span class="lbl">Not an arbitrary URL</span>
-        <p>Accepting any URL is the tempting answer and the wrong one: <code>next/image</code> refuses any host not listed in <code>images.remotePatterns</code>, and opening that up turns your image optimizer into a fetcher for URLs strangers control. Take the narrow option — offer <strong>the six pictures that exist</strong>, or none at all.</p>
+        <p>Accepting any URL is the tempting answer and the wrong one: <code>next/image</code> refuses any host not listed in <code>images.remotePatterns</code>, and opening that up turns your image optimizer into a fetcher for URLs strangers control. Take the narrow option, offer <strong>the six pictures that exist</strong>, or none at all.</p>
       </div>
 
-      <h3>CustomerAvatar — the fallback</h3>
+      <h3>CustomerAvatar, the fallback</h3>
       <p>"Or none at all" means <code>image_url</code> can be an empty string, and <code>&lt;Image src=""&gt;</code> throws at render. One component keeps that decision in a single place instead of scattered across the table's desktop and mobile layouts:</p>
 
       <div class="code">
@@ -807,21 +847,21 @@ export default function CustomerAvatar({
 }</code></pre>
       </div>
 
-      <p>Then replace both raw <code>&lt;Image&gt;</code> blocks in <code>table.tsx</code> with it. Do this <em>before</em> step 06, not after — the first customer you create without a picture will otherwise crash the list page you just built.</p>
+      <p>Then replace both raw <code>&lt;Image&gt;</code> blocks in <code>table.tsx</code> with it. Do this <em>before</em> step 06, not after, the first customer you create without a picture will otherwise crash the list page you just built.</p>
 
       <div class="note">
         <span class="lbl">Why width and height are not optional</span>
-        <p><code>next/image</code> requires explicit dimensions (or <code>fill</code>) so it can reserve space and avoid layout shift. Omitting them isn't a warning — it's a runtime error. Passing <code>size</code> through to both the <code>Image</code> and the fallback <code>span</code> keeps the two branches the same size, which is the whole point of a fallback.</p>
+        <p><code>next/image</code> requires explicit dimensions (or <code>fill</code>) so it can reserve space and avoid layout shift. Omitting them isn't a warning, it's a runtime error. Passing <code>size</code> through to both the <code>Image</code> and the fallback <code>span</code> keeps the two branches the same size, which is the whole point of a fallback.</p>
       </div>
 
-      <h3>AvatarPicker — and why it isn't a &lt;select&gt;</h3>
+      <h3>AvatarPicker, and why it isn't a &lt;select&gt;</h3>
 
       <div class="note warn">
         <span class="lbl">A native select cannot show images</span>
-        <p><code>&lt;option&gt;</code> renders as plain text in every browser. Put an <code>&lt;img&gt;</code> inside one and Chrome, Firefox and Safari all strip it — this is specified behaviour, not a bug you can style around. If you want a thumbnail next to each choice, you are building a custom listbox. There is no shortcut.</p>
+        <p><code>&lt;option&gt;</code> renders as plain text in every browser. Put an <code>&lt;img&gt;</code> inside one and Chrome, Firefox and Safari all strip it, this is specified behaviour, not a bug you can style around. If you want a thumbnail next to each choice, you are building a custom listbox. There is no shortcut.</p>
       </div>
 
-      <p>The pattern: a trigger button that shows the current choice, a <code>role="listbox"</code> panel of options, and a <strong>hidden input</strong> that carries the value into the form. That hidden input is the important part — it means the server action and the Zod schema never learn that this isn't an ordinary field.</p>
+      <p>The pattern: a trigger button that shows the current choice, a <code>role="listbox"</code> panel of options, and a <strong>hidden input</strong> that carries the value into the form. That hidden input is the important part, it means the server action and the Zod schema never learn that this isn't an ordinary field.</p>
 
       <div class="code">
         <div class="code-head"><span class="path">app/ui/customers/avatar-picker.tsx</span><span class="tag new">new</span></div>
@@ -877,7 +917,7 @@ export default function AvatarPicker({
         onClick={() =&gt; setOpen((o) =&gt; !o)}
         onKeyDown={(e) =&gt; { if (e.key === "Escape") setOpen(false); }}
       &gt;
-        {selected ? &lt;Image src={selected.value} … /&gt; : &lt;span&gt;—&lt;/span&gt;}
+        {selected ? &lt;Image src={selected.value} … /&gt; : &lt;span&gt;, &lt;/span&gt;}
         &lt;span&gt;{selected ? selected.label : "No picture (use initials)"}&lt;/span&gt;
         &lt;ChevronUpDownIcon /&gt;
       &lt;/button&gt;
@@ -952,7 +992,7 @@ export type CustomerState = {
 };</code></pre>
       </div>
 
-      <p>The <code>refine</code> looks redundant now that the picker only ever emits one of seven known values — and it is, for anyone using the form. Keep it anyway: a server action is a public HTTP endpoint, and the picker is not a security boundary. Anyone can POST to it directly.</p>
+      <p>The <code>refine</code> looks redundant now that the picker only ever emits one of seven known values, and it is, for anyone using the form. Keep it anyway: a server action is a public HTTP endpoint, and the picker is not a security boundary. Anyone can POST to it directly.</p>
 
       <div class="code">
         <div class="code-head"><span class="path">app/lib/actions.ts</span><span class="tag edit">edit</span></div>
@@ -978,7 +1018,7 @@ redirect("/dashboard/customers");</code></pre>
 
       <div class="note">
         <span class="lbl">Check the labels you copied</span>
-        <p>The invoice form's fields are <code>customer</code>, <code>amount</code> and <code>status</code>. Copy it and you get three labels all reading <code>htmlFor="amount"</code>, pointing at an id that doesn't exist on this page — so clicking "Name" or "Email" focuses nothing. The accessibility chapter you already did is the one that teaches why that matters.</p>
+        <p>The invoice form's fields are <code>customer</code>, <code>amount</code> and <code>status</code>. Copy it and you get three labels all reading <code>htmlFor="amount"</code>, pointing at an id that doesn't exist on this page, so clicking "Name" or "Email" focuses nothing. The accessibility chapter you already did is the one that teaches why that matters.</p>
       </div>
 
       <div class="check">
@@ -994,7 +1034,7 @@ redirect("/dashboard/customers");</code></pre>
         <span class="file is-new">app/dashboard/customers/[id]/edit/page.tsx</span>
       </div>
 
-      <p>The fetch needs no new type — <code>Customer</code> in <code>definitions.ts</code> is already <code>{ id, name, email, image_url }</code>.</p>
+      <p>The fetch needs no new type, <code>Customer</code> in <code>definitions.ts</code> is already <code>{ id, name, email, image_url }</code>.</p>
 
       <div class="code">
         <div class="code-head"><span class="path">app/lib/data.ts</span><span class="tag edit">edit</span></div>
@@ -1014,7 +1054,7 @@ redirect("/dashboard/customers");</code></pre>
 }</code></pre>
       </div>
 
-      <p>The form is the create form with three <code>defaultValue</code>s and a bound id. That binding is the pattern worth internalising — a server action can't take the row id from a hidden field you trust, so you close over it on the server:</p>
+      <p>The form is the create form with three <code>defaultValue</code>s and a bound id. That binding is the pattern worth internalising, a server action can't take the row id from a hidden field you trust, so you close over it on the server:</p>
 
       <div class="code">
         <div class="code-head"><span class="path">app/ui/customers/edit-form.tsx</span><span class="tag new">new</span></div>
@@ -1029,14 +1069,14 @@ const [state, formAction] = useActionState(updateCustomerWithId, initialState);
 /&gt;</code></pre>
       </div>
 
-      <p>The route page fetches, calls <code>notFound()</code> on a miss, and renders breadcrumbs plus the form — the shape of <code>invoices/[id]/edit/page.tsx</code>. Add a sibling <code>not-found.tsx</code> so a bad id gets a friendly 404. Write its copy yourself rather than copying the invoices one, or you ship a customer page apologising about an invoice.</p>
+      <p>The route page fetches, calls <code>notFound()</code> on a miss, and renders breadcrumbs plus the form, the shape of <code>invoices/[id]/edit/page.tsx</code>. Add a sibling <code>not-found.tsx</code> so a bad id gets a friendly 404. Write its copy yourself rather than copying the invoices one, or you ship a customer page apologising about an invoice.</p>
 
       <div class="check">
         <span class="lbl">Checkpoint</span>
         <p>Editing pre-fills all three fields, including the current picture in the picker. Saving returns you to the list with the change visible. Changing someone to "no picture" swaps their photo for initials. <code>/dashboard/customers/does-not-exist/edit</code> renders your 404.</p>
       </div>
 
-      <h2 id="s8"><span class="step-n">STEP 08</span>Delete — and the missing foreign key</h2>
+      <h2 id="s8"><span class="step-n">STEP 08</span>Delete, and the missing foreign key</h2>
       <div class="files">
         <span class="file">app/lib/actions.ts</span>
         <span class="file">app/ui/customers/buttons.tsx</span>
@@ -1060,8 +1100,8 @@ const [state, formAction] = useActionState(updateCustomerWithId, initialState);
         <span class="lbl">There is no foreign key, so nothing stops you</span>
         <p>Delete a customer who has invoices and Postgres will not complain. The invoices survive, pointing at an id that no longer exists. Then the two halves of your dashboard start disagreeing:</p>
         <ul>
-          <li><code>fetchFilteredInvoices</code> uses <code>JOIN customers</code> — an <em>inner</em> join, so orphaned invoices <strong>vanish from the invoices list</strong>.</li>
-          <li><code>fetchCardData</code> runs <code>SELECT COUNT(*) FROM invoices</code> with no join — so the <strong>"Total Invoices" card still counts them</strong>.</li>
+          <li><code>fetchFilteredInvoices</code> uses <code>JOIN customers</code>, an <em>inner</em> join, so orphaned invoices <strong>vanish from the invoices list</strong>.</li>
+          <li><code>fetchCardData</code> runs <code>SELECT COUNT(*) FROM invoices</code> with no join, so the <strong>"Total Invoices" card still counts them</strong>.</li>
         </ul>
         <p>No crash, no log line, just two numbers that quietly stop matching. You can confirm it against your own database in one query:</p>
       </div>
@@ -1074,7 +1114,7 @@ LEFT JOIN customers ON invoices.customer_id = customers.id
 WHERE customers.id IS NULL;</code></pre>
       </div>
 
-      <p>Two honest fixes. The database-level one is to declare the relationship you meant — <code>customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE</code> — correct, but a schema migration against a seeded database, and <code>CREATE TABLE IF NOT EXISTS</code> won't apply it to a table that already exists.</p>
+      <p>Two honest fixes. The database-level one is to declare the relationship you meant, <code>customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE</code>, correct, but a schema migration against a seeded database, and <code>CREATE TABLE IF NOT EXISTS</code> won't apply it to a table that already exists.</p>
 
       <p>The application-level one fits this chapter: refuse.</p>
 
@@ -1108,7 +1148,7 @@ WHERE customers.id IS NULL;</code></pre>
 
       <div class="note warn">
         <span class="lbl">The course's own delete button swallows this</span>
-        <p><code>DeleteInvoice</code> wires up <code>useActionState</code> and then never renders <code>state.message</code>. Every database error it returns goes straight to the floor — the button just does nothing and the user has no idea why. Copy the structure and you inherit the silence, which is worse here, because a refusal is a message the user specifically needs to read.</p>
+        <p><code>DeleteInvoice</code> wires up <code>useActionState</code> and then never renders <code>state.message</code>. Every database error it returns goes straight to the floor, the button just does nothing and the user has no idea why. Copy the structure and you inherit the silence, which is worse here, because a refusal is a message the user specifically needs to read.</p>
       </div>
 
       <div class="code">
@@ -1133,11 +1173,11 @@ WHERE customers.id IS NULL;</code></pre>
         <p>The cell this button sits in is <code>whitespace-nowrap</code>, inherited by the message. Without the override, a one-sentence refusal stretches the table sideways instead of wrapping inside its cell.</p>
       </div>
 
-      <p>Finally the actions column: a sixth <code>&lt;th&gt;</code> with an <code>sr-only</code> label, a matching <code>&lt;td&gt;</code> holding <code>&lt;UpdateCustomer&gt;</code> and <code>&lt;DeleteCustomer&gt;</code>, the same pair in the mobile card — and a sixth cell in <code>CustomersRowSkeleton</code>, which is the one everybody forgets.</p>
+      <p>Finally the actions column: a sixth <code>&lt;th&gt;</code> with an <code>sr-only</code> label, a matching <code>&lt;td&gt;</code> holding <code>&lt;UpdateCustomer&gt;</code> and <code>&lt;DeleteCustomer&gt;</code>, the same pair in the mobile card, and a sixth cell in <code>CustomersRowSkeleton</code>, which is the one everybody forgets.</p>
 
       <div class="check">
         <span class="lbl">Checkpoint</span>
-        <p>Deleting a customer with invoices shows the refusal inline and leaves the row alone. A customer with no invoices deletes without a reload. Then check the dashboard: the customer count dropped, the invoice count didn't move — and the diagnostic query above still returns zero rows.</p>
+        <p>Deleting a customer with invoices shows the refusal inline and leaves the row alone. A customer with no invoices deletes without a reload. Then check the dashboard: the customer count dropped, the invoice count didn't move, and the diagnostic query above still returns zero rows.</p>
       </div>
 
       <h2 id="shared">Shared refactors</h2>
@@ -1163,21 +1203,21 @@ WHERE customers.id IS NULL;</code></pre>
 
       <div class="note">
         <span class="lbl">Let the build do the work</span>
-        <p><code>pnpm build</code> after the rename lists every unconverted import as a type error. Do not hand-search — <code>edit-form.tsx</code> is exactly the file a grep for <code>State</code> drowns in noise on, because the local variable is also called <code>state</code>.</p>
+        <p><code>pnpm build</code> after the rename lists every unconverted import as a type error. Do not hand-search, <code>edit-form.tsx</code> is exactly the file a grep for <code>State</code> drowns in noise on, because the local variable is also called <code>state</code>.</p>
       </div>
 
       <h2 id="gaps">Known gaps</h2>
       <p>What this chapter deliberately leaves open, so the next person reading the repo doesn't mistake them for finished work:</p>
 
       <ul>
-        <li><strong>No <code>UNIQUE</code> on <code>customers.email</code></strong> — two customers can share an address. Schema-level, same as the missing foreign key, and out of scope until there's a migration story.</li>
+        <li><strong>No <code>UNIQUE</code> on <code>customers.email</code></strong>, two customers can share an address. Schema-level, same as the missing foreign key, and out of scope until there's a migration story.</li>
         <li><strong>No pictures beyond the seeded six.</strong> Real uploads mean blob storage and a signed-upload endpoint; that's its own chapter, not a footnote in this one.</li>
-        <li><strong>Icon-only edit links have no accessible name.</strong> The trash button has <code>sr-only</code> text; the pencil doesn't — in both the customers and invoices versions. One line each, worth doing in an accessibility pass rather than piecemeal.</li>
+        <li><strong>Icon-only edit links have no accessible name.</strong> The trash button has <code>sr-only</code> text; the pencil doesn't, in both the customers and invoices versions. One line each, worth doing in an accessibility pass rather than piecemeal.</li>
         <li><strong>Deleting is refused, not cascaded.</strong> A customer with invoices can't be removed at all. That's the safe default, not the right long-term answer.</li>
       </ul>
 
       <h2 id="commit">Commit</h2>
-      <p>Three commits — the read-only half, the shared refactors, and the CRUD:</p>
+      <p>Three commits, the read-only half, the shared refactors, and the CRUD:</p>
 
       <div class="commit">
         <pre>feat(customers): implement customers page with streamed search</pre>
@@ -1207,7 +1247,7 @@ Render the delete action's state, which was previously dropped.</pre>
       </div>
 
       <h2 id="next">Next chapter</h2>
-      <p>With the project actually finished, chapter 17 adds <code>/en</code> and <code>/ar</code> routing and Arabic RTL. It goes next because it restructures every route under a <code>[locale]</code> segment — cheaper while the app is small, and before cache boundaries or tests are drawn on the old tree.</p>
+      <p>With the project actually finished, chapter 17 adds <code>/en</code> and <code>/ar</code> routing and Arabic RTL. It goes next because it restructures every route under a <code>[locale]</code> segment, cheaper while the app is small, and before cache boundaries or tests are drawn on the old tree.</p>
       <p>Two things to carry forward. The table, both forms and the picker are full of hardcoded <code>pl-</code>, <code>pr-</code> and <code>ml-</code> utilities, so you'll be back in every one of them. The picker's dropdown panel, though, will survive untouched: it is <code>absolute … w-full</code> with no <code>left</code> or <code>right</code> anchor, so it mirrors for free. Sizing to the container instead of positioning against an edge is the habit worth keeping.</p>
 
     </div>

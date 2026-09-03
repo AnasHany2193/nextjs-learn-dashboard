@@ -136,6 +136,25 @@
     max-height: 100vh;
     overflow-y: auto;
   }
+  /* ---------- back to index ---------- */
+  .rail .rail-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    margin: 0 0 18px;
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-decoration: none;
+    border-inline-start: 0;
+  }
+  .rail .rail-back:hover { background: none; color: var(--accent-ink); }
+  .rail .rail-back:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+  .rail .rail-back .arrow { font-size: 13px; line-height: 1; }
+
   .rail-title {
     font-family: var(--f-mono);
     font-size: 11px;
@@ -484,10 +503,11 @@
 <div class="shell">
 
   <nav class="rail" aria-label="Chapter contents">
+    <a class="rail-back" href="../"><span class="arrow" aria-hidden="true">&larr;</span><span>All chapters</span></a>
     <p class="rail-title">Chapter 17 · Built</p>
     <ol>
-      <li><a href="#decisions"><span class="n">—</span><span>Decisions</span></a></li>
-      <li><a href="#surface"><span class="n">—</span><span>The surface</span></a></li>
+      <li><a href="#decisions"><span class="n">·</span><span>Decisions</span></a></li>
+      <li><a href="#surface"><span class="n">·</span><span>The surface</span></a></li>
       <li><a href="#s1"><span class="n">01</span><span>Install &amp; route config</span></a></li>
       <li><a href="#s2"><span class="n">02</span><span>Move routes under [locale]</span></a></li>
       <li><a href="#s3"><span class="n">03</span><span>Compose the proxy</span></a></li>
@@ -498,10 +518,10 @@
       <li><a href="#s8"><span class="n">08</span><span>Metadata &amp; switcher</span></a></li>
       <li><a href="#s9"><span class="n">09</span><span>Arabic route slugs</span></a></li>
       <li class="sep">After</li>
-      <li><a href="#wrong"><span class="n">—</span><span>What the plan got wrong</span></a></li>
-      <li><a href="#gaps"><span class="n">—</span><span>Known gaps</span></a></li>
-      <li><a href="#commits"><span class="n">—</span><span>Commits</span></a></li>
-      <li><a href="#honest"><span class="n">—</span><span>What this isn't</span></a></li>
+      <li><a href="#wrong"><span class="n">·</span><span>What the plan got wrong</span></a></li>
+      <li><a href="#gaps"><span class="n">·</span><span>Known gaps</span></a></li>
+      <li><a href="#commits"><span class="n">·</span><span>Commits</span></a></li>
+      <li><a href="#honest"><span class="n">·</span><span>What this isn't</span></a></li>
     </ol>
   </nav>
 
@@ -510,14 +530,33 @@
 
       <p class="eyebrow">Self-directed · Chapter 17 · Built</p>
       <h1>Bilingual routing and Arabic RTL</h1>
-      <p class="standfirst">The Acme dashboard now serves <code>/en</code> and <code>/ar</code> with real Arabic slugs, a mirrored layout, and translated copy throughout. This is the record of building it — including the two authentication bypasses that only showed up because the routes were tested live, not read.</p>
+      <p class="standfirst">The Acme dashboard now serves <code>/en</code> and <code>/ar</code> with real Arabic slugs, a mirrored layout, and translated copy throughout. This is the record of building it, including the two authentication bypasses that only showed up because the routes were tested live, not read.</p>
+
+      <div class="note">
+        <span class="lbl">Before you start</span>
+        <p><strong>Start from:</strong> the <code>chapter-16-finish-project</code> branch. <strong>Chapter 16 is a hard prerequisite</strong>, not a suggestion: this chapter moves every route file under an <code>app/[locale]/</code> segment, including the four customer routes Chapter 16 creates. Starting from <code>course-complete</code> will leave you moving files that do not exist.</p>
+        <div class="code">
+          <div class="code-head"><span class="path">Terminal</span><span class="tag">setup</span></div>
+          <pre><code>git checkout chapter-16-finish-project
+pnpm install
+pnpm dev</code></pre>
+        </div>
+        <p><strong>What you already know</strong> after Chapter 16: full CRUD on both invoices and customers, <code>breadcrumbs.tsx</code> and <code>pagination.tsx</code> living at <code>app/ui/</code> rather than under <code>invoices/</code>, and the <code>InvoiceState</code> / <code>CustomerState</code> split in the actions layer.</p>
+        <p><strong>What is new here:</strong> quite a lot, and none of it was in the core course. Locale routing with next-intl, message extraction, ICU plurals, logical CSS properties for direction-independent layout, locale-aware number and currency formatting, and composing two middlewares in one <code>proxy.ts</code>.</p>
+        <p><strong>You finish at:</strong> the <code>chapter-17-i18n-rtl</code> branch.</p>
+      </div>
+
+      <div class="note warn">
+        <span class="lbl">Why this chapter comes second</span>
+        <p>i18n is the most invasive change in the whole sequence: it touches the route tree, every link, every string, and the auth boundary. Doing it before Chapter 16 would mean translating and re-pathing customer features that do not exist yet, then doing it again. Doing it after Chapter 18 would mean drawing cache boundaries on a route tree that is about to move. Second is the only place it fits.</p>
+      </div>
 
       <div class="learn">
         <h4>What shipped</h4>
         <ul>
           <li>Locale routing with <strong>next-intl 4.14.1</strong> on Next 16.3.3</li>
           <li>15 route files moved under <code>app/[locale]/</code>, 2 route handlers deliberately left out</li>
-          <li>Two proxies — locale detection and auth — composed into one <code>proxy.ts</code></li>
+          <li>Two proxies, locale detection and auth, composed into one <code>proxy.ts</code></li>
           <li><strong>82 message keys</strong> per locale, verified at exact en/ar parity</li>
           <li><strong>Zero</strong> physical-direction Tailwind utilities left in the tree</li>
           <li>Real Arabic URL slugs: <code>/ar/الفواتير</code>, not <code>/ar/dashboard/invoices</code></li>
@@ -528,18 +567,18 @@
       <h2 id="decisions">Decisions, and how they held up</h2>
 
       <h3>next-intl, not hand-rolled</h3>
-      <p>Held up. The App Router has no built-in i18n routing — the <code>i18n</code> key in <code>next.config</code> is Pages Router only. Installed <strong>4.14.1</strong>, which declares <code>next: "… || ^16.0.0"</code> and <code>react: "… || ^19.0.0"</code>.</p>
+      <p>Held up. The App Router has no built-in i18n routing, the <code>i18n</code> key in <code>next.config</code> is Pages Router only. Installed <strong>4.14.1</strong>, which declares <code>next: "… || ^16.0.0"</code> and <code>react: "… || ^19.0.0"</code>.</p>
 
       <div class="note warn">
         <span class="lbl">The naming mismatch is real</span>
-        <p>Next 16 renamed the file to <code>proxy.ts</code>, but next-intl has no <code>next-intl/proxy</code> entrypoint. You import <code>createMiddleware</code> from <code>next-intl/middleware</code> — inside a file called <code>proxy.ts</code>. Correct, not a bug.</p>
+        <p>Next 16 renamed the file to <code>proxy.ts</code>, but next-intl has no <code>next-intl/proxy</code> entrypoint. You import <code>createMiddleware</code> from <code>next-intl/middleware</code>, inside a file called <code>proxy.ts</code>. Correct, not a bug.</p>
       </div>
 
       <h3>Always prefix the locale</h3>
       <p>Held up, and step 09 leaned on it harder than expected. With <code>localePrefix: "always"</code> the locale segment is unambiguous, which is what lets the auth check read the locale off the raw pathname before next-intl has rewritten anything.</p>
 
       <h3>Arabic is a real locale, not English in a mirror</h3>
-      <p>This one turned out to be the through-line of the whole chapter. Mirroring the layout was the easy half and took one mechanical pass. The other half — fonts without Arabic glyphs, a currency formatter pinned to <code>en-US</code>, plural forms, and eventually the URLs themselves — is where the real work was.</p>
+      <p>This one turned out to be the through-line of the whole chapter. Mirroring the layout was the easy half and took one mechanical pass. The other half, fonts without Arabic glyphs, a currency formatter pinned to <code>en-US</code>, plural forms, and eventually the URLs themselves, is where the real work was.</p>
 
       <div class="bidi">
         <div class="bidi-head">Same markup, opposite <code>dir</code></div>
@@ -568,7 +607,7 @@
           </thead>
           <tbody>
             <tr><td>Route files under <code>[locale]</code></td><td>0</td><td>15</td></tr>
-            <tr><td>Route handlers left unprefixed</td><td>—</td><td>2</td></tr>
+            <tr><td>Route handlers left unprefixed</td><td>, </td><td>2</td></tr>
             <tr><td>Files importing <code>@/i18n/navigation</code></td><td>0</td><td>16</td></tr>
             <tr><td>Files calling <code>useTranslations</code>/<code>getTranslations</code></td><td>0</td><td>31</td></tr>
             <tr><td>Message keys per locale</td><td>0</td><td>82 (en/ar parity verified)</td></tr>
@@ -591,7 +630,7 @@
         <span class="file">next.config.ts</span>
       </div>
 
-      <p><code>routing.ts</code> is the single source of truth — the proxy, the navigation helpers, the auth check and the metadata all read from it.</p>
+      <p><code>routing.ts</code> is the single source of truth, the proxy, the navigation helpers, the auth check and the metadata all read from it.</p>
 
       <div class="code">
         <div class="code-head"><span class="path">i18n/navigation.ts</span><span class="tag new">new</span></div>
@@ -622,7 +661,7 @@ export default createNextIntlPlugin()(nextConfig);</code></pre>
         <p><code>app/query/route.ts</code> and <code>app/seed/route.ts</code> are machine endpoints. There is no <code>/ar</code> version of a seed script. They stay at the root, need no layout, and get excluded from the proxy matcher in step 03. Same for <code>app/ui/</code> and <code>app/lib/</code>, which were never routes.</p>
       </div>
 
-      <p>The layout is where <code>lang</code> and <code>dir</code> get set — the two attributes the entire RTL story hangs off:</p>
+      <p>The layout is where <code>lang</code> and <code>dir</code> get set, the two attributes the entire RTL story hangs off:</p>
 
       <div class="code">
         <div class="code-head"><span class="path">app/[locale]/layout.tsx</span><span class="tag edit">edit</span></div>
@@ -642,7 +681,7 @@ return (
 );</code></pre>
       </div>
 
-      <h2 id="s3"><span class="step-n">STEP 03</span>Compose the proxy — and the first bypass</h2>
+      <h2 id="s3"><span class="step-n">STEP 03</span>Compose the proxy, and the first bypass</h2>
       <div class="files">
         <span class="file">proxy.ts</span>
         <span class="file">auth.config.ts</span>
@@ -660,7 +699,7 @@ export default auth((req) =&gt; handleLocale(req));</code></pre>
 
       <div class="note warn">
         <span class="lbl">This compiles, runs, and silently disables authentication</span>
-        <p><code>authConfig.callbacks.authorized()</code> is only auto-enforced by the bare <code>export default auth</code> form. The moment you wrap <code>auth()</code> around your own function — which is <em>required</em> to run next-intl alongside it — the framework stops acting on that callback's verdict. It still <em>calls</em> it. It just ignores what comes back.</p>
+        <p><code>authConfig.callbacks.authorized()</code> is only auto-enforced by the bare <code>export default auth</code> form. The moment you wrap <code>auth()</code> around your own function, which is <em>required</em> to run next-intl alongside it, the framework stops acting on that callback's verdict. It still <em>calls</em> it. It just ignores what comes back.</p>
         <p>Result: every dashboard route was reachable while logged out, in both locales. No error, no warning, no log line. The page just renders.</p>
       </div>
 
@@ -742,7 +781,7 @@ export default auth((req) =&gt; handleLocale(req));</code></pre>
 
       <div class="note warn">
         <span class="lbl">The delete actions are the ones to double-check</span>
-        <p><code>deleteInvoice</code> and <code>deleteCustomer</code> revalidate but never redirect — they run from a button inside a table, not a form page. They still need the locale-aware <code>revalidatePath</code>, or deleting in Arabic quietly refreshes the English list and leaves the Arabic one stale.</p>
+        <p><code>deleteInvoice</code> and <code>deleteCustomer</code> revalidate but never redirect, they run from a button inside a table, not a form page. They still need the locale-aware <code>revalidatePath</code>, or deleting in Arabic quietly refreshes the English list and leaves the Arabic one stale.</p>
       </div>
 
       <h2 id="s5"><span class="step-n">STEP 05</span>Extract the copy</h2>
@@ -751,7 +790,7 @@ export default auth((req) =&gt; handleLocale(req));</code></pre>
 
       <div class="note warn">
         <span class="lbl">Having messages is not the same as using them</span>
-        <p>You can complete steps 01 through 04, load <code>/ar</code>, see a correctly mirrored RTL layout with an Arabic font — and every single label still in English. The layout work and the copy work are independent, and the layout work is the one that <em>looks</em> like progress.</p>
+        <p>You can complete steps 01 through 04, load <code>/ar</code>, see a correctly mirrored RTL layout with an Arabic font, and every single label still in English. The layout work and the copy work are independent, and the layout work is the one that <em>looks</em> like progress.</p>
         <p>The check that catches it: grep the tree for JSX text nodes that aren't a <code>t()</code> call. It should return nothing.</p>
       </div>
 
@@ -761,7 +800,7 @@ export default auth((req) =&gt; handleLocale(req));</code></pre>
   | grep -vE "t\(|\{|&gt;Acme&lt;"</code></pre>
       </div>
 
-      <p>Namespaces landed as <code>Meta</code>, <code>Nav</code>, <code>Home</code>, <code>Login</code>, <code>Dashboard</code>, <code>Customers</code>, <code>Invoices</code> — 82 keys each side, verified identical between <code>en.json</code> and <code>ar.json</code> by script rather than by eye.</p>
+      <p>Namespaces landed as <code>Meta</code>, <code>Nav</code>, <code>Home</code>, <code>Login</code>, <code>Dashboard</code>, <code>Customers</code>, <code>Invoices</code>, 82 keys each side, verified identical between <code>en.json</code> and <code>ar.json</code> by script rather than by eye.</p>
 
       <div class="note warn">
         <span class="lbl">One string genuinely needs ICU plurals</span>
@@ -776,7 +815,7 @@ export default auth((req) =&gt; handleLocale(req));</code></pre>
 
       <div class="note">
         <span class="lbl">Data is not copy</span>
-        <p>The avatar picker derives its option labels from filenames — "amy burns", "lee robinson". Those are people's names. They stay identical in both locales, as do the seeded customer names in the table. Only <code>"No picture (use initials)"</code> and the listbox's <code>aria-label</code> belong in <code>messages/</code>.</p>
+        <p>The avatar picker derives its option labels from filenames, "amy burns", "lee robinson". Those are people's names. They stay identical in both locales, as do the seeded customer names in the table. Only <code>"No picture (use initials)"</code> and the listbox's <code>aria-label</code> belong in <code>messages/</code>.</p>
       </div>
 
       <h2 id="s6"><span class="step-n">STEP 06</span>Direction and RTL styles</h2>
@@ -804,20 +843,20 @@ export default auth((req) =&gt; handleLocale(req));</code></pre>
             <tr><td><code>left-3</code></td><td><code>start-3</code></td><td>7</td></tr>
             <tr><td><code>pl-10</code></td><td><code>ps-10</code></td><td>7</td></tr>
             <tr><td><code>text-left</code></td><td><code>text-start</code></td><td>5</td></tr>
-            <tr><td><code>space-x-2</code></td><td><code>gap-2</code></td><td>—</td></tr>
+            <tr><td><code>space-x-2</code></td><td><code>gap-2</code></td><td>, </td></tr>
           </tbody>
         </table>
       </div>
 
       <div class="note warn">
         <span class="lbl">space-x has no logical equivalent</span>
-        <p>It emits physical <code>margin-left</code>. Where the parent was already a flex container, <code>gap-*</code> replaced it outright — direction-agnostic by construction. The one case that couldn't be replaced is pagination's <code>-space-x-px</code>, which exists to collapse adjacent borders; <code>gap</code> can't reproduce a negative overlap, so that one keeps <code>rtl:space-x-reverse</code>.</p>
+        <p>It emits physical <code>margin-left</code>. Where the parent was already a flex container, <code>gap-*</code> replaced it outright, direction-agnostic by construction. The one case that couldn't be replaced is pagination's <code>-space-x-px</code>, which exists to collapse adjacent borders; <code>gap</code> can't reproduce a negative overlap, so that one keeps <code>rtl:space-x-reverse</code>.</p>
       </div>
 
       <p>Five <code>rtl:</code> overrides survive in the whole tree, and all five are deliberate: the pagination chevrons, the login button arrow, and the homepage arrow get <code>rtl:rotate-180</code>, because logical properties <em>move</em> an icon but never <em>flip</em> it. Nothing else is rotated. A mirrored trash can is the classic over-correction.</p>
 
       <h3>Fonts</h3>
-      <p>Inter and Lusitana load with <code>subsets: ["latin"]</code> — not one Arabic glyph between them, so <code>/ar</code> was rendering in whatever the OS happened to fall back to.</p>
+      <p>Inter and Lusitana load with <code>subsets: ["latin"]</code>, not one Arabic glyph between them, so <code>/ar</code> was rendering in whatever the OS happened to fall back to.</p>
 
       <div class="code">
         <div class="code-head"><span class="path">app/ui/fonts.ts</span><span class="tag edit">edit</span></div>
@@ -832,17 +871,17 @@ export const bodyFont = (locale: string) =&gt;
 
       <h2 id="s7"><span class="step-n">STEP 07</span>Numbers, dates and money</h2>
 
-      <p>Three formatters were pinned to <code>en-US</code>, and chapter 16 had widened the blast radius — <code>formatCurrency</code> now runs on the customers table's totals as well as every invoice.</p>
+      <p>Three formatters were pinned to <code>en-US</code>, and chapter 16 had widened the blast radius, <code>formatCurrency</code> now runs on the customers table's totals as well as every invoice.</p>
 
       <div class="note">
         <span class="lbl">The decision this step actually turned on</span>
         <p><code>fetchFilteredCustomers</code> formats currency <em>inside the data layer</em>, before any component sees it. So either the locale threads down into the fetch, or formatting moves out of <code>data.ts</code> into the components.</p>
-        <p>What shipped: <code>getLocale()</code> called inside <code>data.ts</code> itself. It works because these functions only ever run inside a request scope, and it avoided a refactor of both tables. The cleaner long-term shape is still moving presentation out of the data layer — a data layer shouldn't be deciding how money looks. Recorded here as a deliberate trade, not an oversight.</p>
+        <p>What shipped: <code>getLocale()</code> called inside <code>data.ts</code> itself. It works because these functions only ever run inside a request scope, and it avoided a refactor of both tables. The cleaner long-term shape is still moving presentation out of the data layer, a data layer shouldn't be deciding how money looks. Recorded here as a deliberate trade, not an oversight.</p>
       </div>
 
       <div class="note warn">
         <span class="lbl">A real decision, not a formatting detail</span>
-        <p>Arabic has two numeral systems. <code>ar</code> defaults to Arabic-Indic digits (٠١٢٣), but plenty of Gulf and Levantine business UIs use Western digits. If you want Western digits in an Arabic UI that's <code>ar-u-nu-latn</code> — an actual Unicode extension, not a hack. Pick one deliberately and write down why.</p>
+        <p>Arabic has two numeral systems. <code>ar</code> defaults to Arabic-Indic digits (٠١٢٣), but plenty of Gulf and Levantine business UIs use Western digits. If you want Western digits in an Arabic UI that's <code>ar-u-nu-latn</code>, an actual Unicode extension, not a hack. Pick one deliberately and write down why.</p>
       </div>
 
       <h2 id="s8"><span class="step-n">STEP 08</span>Metadata and the switcher</h2>
@@ -862,7 +901,7 @@ function switchTo(nextLocale: string) {
       </div>
 
       <div class="note warn">
-        <span class="lbl">The hreflang half is still wrong — see Known gaps</span>
+        <span class="lbl">The hreflang half is still wrong, see Known gaps</span>
         <p>The <code>alternates.languages</code> block lives in the root layout, which knows the locale but not which page matched. So every page emits the same alternates, pointing at the site root. Getting this right means moving <code>alternates</code> into each page's own <code>generateMetadata</code>.</p>
       </div>
 
@@ -875,7 +914,7 @@ function switchTo(nextLocale: string) {
         <span class="file">app/ui/invoices/buttons.tsx</span>
       </div>
 
-      <p>This step was not in the original plan. Translating the labels but leaving <code>/ar/dashboard/invoices</code> in the address bar is a half-measure — the URL is copy too.</p>
+      <p>This step was not in the original plan. Translating the labels but leaving <code>/ar/dashboard/invoices</code> in the address bar is a half-measure, the URL is copy too.</p>
 
       <div class="code">
         <div class="code-head"><span class="path">i18n/routing.ts</span><span class="tag edit">edit</span></div>
@@ -895,10 +934,10 @@ function switchTo(nextLocale: string) {
 }</code></pre>
       </div>
 
-      <p>Two things make this cheaper than it sounds. The filesystem doesn't change — the proxy rewrites the Arabic URL to the internal path before Next's router sees it. And every <code>Link</code> already goes through <code>@/i18n/navigation</code>, so the calling code keeps using the internal key and gets the right slug for free.</p>
+      <p>Two things make this cheaper than it sounds. The filesystem doesn't change, the proxy rewrites the Arabic URL to the internal path before Next's router sees it. And every <code>Link</code> already goes through <code>@/i18n/navigation</code>, so the calling code keeps using the internal key and gets the right slug for free.</p>
 
       <div class="note warn">
-        <span class="lbl">Typed pathnames break interpolated hrefs — on purpose</span>
+        <span class="lbl">Typed pathnames break interpolated hrefs, on purpose</span>
         <p>Once <code>pathnames</code> is defined, <code>Link</code>'s <code>href</code> stops accepting arbitrary strings. Four call sites broke at compile time, which is the tooling doing its job:</p>
       </div>
 
@@ -908,7 +947,7 @@ function switchTo(nextLocale: string) {
 <span class="add">+ href={{ pathname: "/dashboard/customers/[id]/edit", params: { id } }}</span></code></pre>
       </div>
 
-      <p>Pagination needed the same treatment for a different reason — it was concatenating <code>?page=…</code> onto the pathname as a raw string, which no longer satisfies the type. It now passes <code>{ pathname, query }</code> separately. <code>breadcrumbs.tsx</code>, being generic, types its <code>href</code> as <code>React.ComponentProps&lt;typeof Link&gt;["href"]</code> so it inherits whatever <code>Link</code> accepts instead of duplicating the union.</p>
+      <p>Pagination needed the same treatment for a different reason, it was concatenating <code>?page=…</code> onto the pathname as a raw string, which no longer satisfies the type. It now passes <code>{ pathname, query }</code> separately. <code>breadcrumbs.tsx</code>, being generic, types its <code>href</code> as <code>React.ComponentProps&lt;typeof Link&gt;["href"]</code> so it inherits whatever <code>Link</code> accepts instead of duplicating the union.</p>
 
       <h3>The second bypass</h3>
 
@@ -926,7 +965,7 @@ function switchTo(nextLocale: string) {
 
       <div class="note warn">
         <span class="lbl">req.nextUrl.pathname is percent-encoded and never auto-decodes</span>
-        <p>At the middleware level the pathname is raw. The browser address bar shows you <code>/ar/لوحة-التحكم</code>; your code receives <code>/ar/%D9%84%D9%88…</code>. <code>routing.pathnames</code> holds literal Unicode, so <code>startsWith</code> compared encoded against decoded and silently returned false — and the auth check no-opped for the second time in one chapter, via a completely different mechanism.</p>
+        <p>At the middleware level the pathname is raw. The browser address bar shows you <code>/ar/لوحة-التحكم</code>; your code receives <code>/ar/%D9%84%D9%88…</code>. <code>routing.pathnames</code> holds literal Unicode, so <code>startsWith</code> compared encoded against decoded and silently returned false, and the auth check no-opped for the second time in one chapter, via a completely different mechanism.</p>
       </div>
 
       <div class="code">
@@ -938,7 +977,7 @@ function switchTo(nextLocale: string) {
 }</code></pre>
       </div>
 
-      <p>Decoding inside the two shared helpers fixes it for both <code>proxy.ts</code> and <code>auth.config.ts</code> at once — every caller is correct by construction rather than by remembering.</p>
+      <p>Decoding inside the two shared helpers fixes it for both <code>proxy.ts</code> and <code>auth.config.ts</code> at once, every caller is correct by construction rather than by remembering.</p>
 
       <div class="check">
         <span class="lbl">Verified</span>
@@ -953,11 +992,11 @@ function switchTo(nextLocale: string) {
           <thead><tr><th>The plan said</th><th>What actually happened</th></tr></thead>
           <tbody>
             <tr>
-              <td>"Verify the sign-in redirect yourself — the locale might get dropped."</td>
+              <td>"Verify the sign-in redirect yourself, the locale might get dropped."</td>
               <td>Far worse. The locale wasn't dropped; <strong>the entire auth check wasn't running.</strong> The plan anticipated a cosmetic redirect bug and missed a total bypass.</td>
             </tr>
             <tr>
-              <td>Step 05 framed as "the tedious part" — mechanical extraction.</td>
+              <td>Step 05 framed as "the tedious part", mechanical extraction.</td>
               <td>Tedious, yes, but also the step most likely to look done while being untouched. Mirrored layout plus Arabic font plus English labels reads as progress.</td>
             </tr>
             <tr>
@@ -975,7 +1014,7 @@ function switchTo(nextLocale: string) {
 
       <h2 id="gaps">Known gaps</h2>
       <ul>
-        <li><strong><code>hreflang</code> alternates are wrong on every page.</strong> <code>alternates.languages</code> is hardcoded to <code>/en</code> and <code>/ar</code> in the root layout, which can't know which page matched. Verified still broken. Fixing it means per-page <code>generateMetadata</code> using <code>getPathname</code> — nine files.</li>
+        <li><strong><code>hreflang</code> alternates are wrong on every page.</strong> <code>alternates.languages</code> is hardcoded to <code>/en</code> and <code>/ar</code> in the root layout, which can't know which page matched. Verified still broken. Fixing it means per-page <code>generateMetadata</code> using <code>getPathname</code>, nine files.</li>
         <li><strong>Presentation still lives in the data layer.</strong> <code>getLocale()</code> inside <code>data.ts</code> works, but formatting money is a component's job.</li>
         <li><strong><code>pages.signIn</code> is a bare <code>"/login"</code>.</strong> It's static config, so it can't be locale-aware. It's off the enforced path now, but it would be wrong if anything started relying on it.</li>
         <li><strong>The pathnames map is a second list to maintain.</strong> Add a route and forget the entry, and <code>/ar</code> 404s silently.</li>
@@ -993,20 +1032,20 @@ function switchTo(nextLocale: string) {
 
       <div class="note">
         <span class="lbl">Why not five commits</span>
-        <p>Because none of this was committed incrementally, every UI file's RTL pass, translation wiring and typed-href fix are flattened into one diff. Splitting further would mean reconstructing intermediate file states to fake a history that never existed. The auth layer <em>is</em> cleanly separable — so that's where the line got drawn.</p>
+        <p>Because none of this was committed incrementally, every UI file's RTL pass, translation wiring and typed-href fix are flattened into one diff. Splitting further would mean reconstructing intermediate file states to fake a history that never existed. The auth layer <em>is</em> cleanly separable, so that's where the line got drawn.</p>
       </div>
 
       <h2 id="honest">What this chapter isn't</h2>
 
       <div class="verdict">
         <h3>The SEO half is still a rehearsal</h3>
-        <p>Step 08 emits alternates and a canonical. Step 09 produces genuinely well-formed localized URLs. No crawler will ever see any of it — everything meaningful sits behind <code>authorized()</code>, which this chapter spent most of its effort making actually work. The entire i18n SEO surface is unreachable to Googlebot by design.</p>
+        <p>Step 08 emits alternates and a canonical. Step 09 produces genuinely well-formed localized URLs. No crawler will ever see any of it, everything meaningful sits behind <code>authorized()</code>, which this chapter spent most of its effort making actually work. The entire i18n SEO surface is unreachable to Googlebot by design.</p>
         <p>That doesn't make it wasted, but it does make it <strong>practice, not portfolio</strong>. <code>/ar</code> routing on a login-walled dashboard is not a line on a CV, and it does not move the Phase 2 number.</p>
-        <p>What it did produce is harder to put on a CV and worth more: two authentication bypasses, in a framework composition that every tutorial demonstrates, found only because the running app was tested rather than the code re-read. The second one — percent-encoded pathnames never matching Unicode slugs — is the kind of bug that ships to production in a real Arabic app and survives code review indefinitely, because the code looks obviously correct.</p>
+        <p>What it did produce is harder to put on a CV and worth more: two authentication bypasses, in a framework composition that every tutorial demonstrates, found only because the running app was tested rather than the code re-read. The second one, percent-encoded pathnames never matching Unicode slugs, is the kind of bug that ships to production in a real Arabic app and survives code review indefinitely, because the code looks obviously correct.</p>
       </div>
 
       <h3>Next chapter</h3>
-      <p>Cache Components. It goes after this because cache boundaries drawn on the old route tree would have to be redrawn on the new one — and because measuring what caching bought is the chapter after that.</p>
+      <p>Cache Components. It goes after this because cache boundaries drawn on the old route tree would have to be redrawn on the new one, and because measuring what caching bought is the chapter after that.</p>
 
     </div>
   </main>

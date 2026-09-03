@@ -495,15 +495,15 @@
       <li><a href="#s2"><span class="n">02</span><span>next-intl via root params</span></a></li>
       <li><a href="#s3"><span class="n">03</span><span>Client URL hooks</span></a></li>
       <li class="sep">Stage 2 · Cache</li>
-      <li><a href="#s4"><span class="n">04</span><span>Locale out of the data layer</span></a></li>
-      <li><a href="#s5"><span class="n">05</span><span>use cache &amp; cacheLife</span></a></li>
+      <li><a href="#s4"><span class="n">04</span><span>Cache a read</span></a></li>
+      <li><a href="#s5"><span class="n">05</span><span>The request-data wall</span></a></li>
       <li><a href="#s6"><span class="n">06</span><span>Tags &amp; invalidation</span></a></li>
       <li class="sep">Stage 3 · Stream</li>
       <li><a href="#s7"><span class="n">07</span><span>searchParams</span></a></li>
-      <li><a href="#s8"><span class="n">08</span><span>The session read</span></a></li>
       <li class="sep">Stage 4 · Prove</li>
-      <li><a href="#s9"><span class="n">09</span><span>Measure it</span></a></li>
+      <li><a href="#s8"><span class="n">08</span><span>Read the result</span></a></li>
       <li class="sep">Reference</li>
+      <li><a href="#notimpl"><span class="n">·</span><span>Not demonstrated here</span></a></li>
       <li><a href="#escape"><span class="n">·</span><span>The escape hatch</span></a></li>
       <li><a href="#risks"><span class="n">·</span><span>What could go wrong</span></a></li>
       <li><a href="#commits"><span class="n">·</span><span>Commit discipline</span></a></li>
@@ -653,24 +653,33 @@
 
       <h2 id="status">Where we are now</h2>
 
-      <p>Stage 1 is two thirds done. These numbers are from real build output on this repo, not projections.</p>
+      <p>Steps 01 and 02 are committed and verified. Step 03 is committed but <strong>one edit short of its checkpoint</strong>. Everything above the dividing line below is measured build output from this repo; everything below it is the projection the remaining steps are designed against.</p>
 
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>Milestone</th><th>Failing paths</th></tr>
+            <tr><th>Milestone</th><th>Failing paths</th><th>Status</th></tr>
           </thead>
           <tbody>
-            <tr><td>Flag off (baseline)</td><td>n/a, 11 of 11 routes dynamic</td></tr>
-            <tr><td>Flag on, nothing else</td><td>build dies before rendering</td></tr>
-            <tr><td>After step 01</td><td>18</td></tr>
-            <tr><td>After step 02</td><td><strong>16</strong>, login now prerenders in both locales</td></tr>
-            <tr><td>After step 03, sidebar wrapped</td><td><strong>12</strong>, dashboard chrome clears; home still open</td></tr>
+            <tr><td>Flag off (baseline)</td><td>n/a, 11 of 11 routes dynamic</td><td>measured</td></tr>
+            <tr><td>Flag on, nothing else</td><td>build dies before rendering</td><td>measured</td></tr>
+            <tr><td>After step 01</td><td>18</td><td>measured</td></tr>
+            <tr><td>After step 02</td><td><strong>16</strong>, login prerenders in both locales</td><td>measured</td></tr>
+            <tr><td>After step 03, sidebar only</td><td><strong>12</strong>, dashboard chrome clears</td><td>measured, current HEAD</td></tr>
+            <tr><td>After step 03 finished, home too</td><td><strong>10</strong>, all client-hook blockers gone</td><td>measured on a scratch branch</td></tr>
+            <tr><td>After step 04</td><td>4, create and edit routes clear</td><td>projected</td></tr>
+            <tr><td>After step 05</td><td>4, unchanged; this step buys cacheability, not routes</td><td>projected</td></tr>
+            <tr><td>After step 07</td><td><strong>0</strong>, build exits clean</td><td>projected</td></tr>
           </tbody>
         </table>
       </div>
 
-      <p>The 16 that remain are the two home paths, blocked only by <code>LocaleSwitcher</code>, and the fourteen dashboard paths, blocked by the shared chrome and then by uncached database reads behind it.</p>
+      <p>The 12 failing today break down as: the two home paths, blocked only by <code>LocaleSwitcher</code>; four list-page paths blocked by <code>searchParams</code>; and six create/edit paths blocked by uncached database reads. That grouping is what the remaining step order follows.</p>
+
+      <div class="note warn">
+        <span class="lbl">Step 03 is not finished, and the count above proves it</span>
+        <p>Commit <code>012b4f0</code> wrapped <code>NavLinks</code> and <code>LocaleSwitcher</code> inside <code>SideNav</code>, which cleared the dashboard chrome. It did not wrap the <em>third</em> mount point: <code>LocaleSwitcher</code> also renders directly on the home page, at <code>app/[locale]/page.tsx</code> line 18, outside any boundary. Finish that before starting step 04, using the instructions at the end of the step 03 section.</p>
+      </div>
 
       <h2 id="s1"><span class="step-n">Step 01 · done</span>Turn on the flag and enumerate the root param</h2>
 
@@ -845,7 +854,7 @@ export, only getFormatter is, and this app configures no custom formats,
 so an empty object skips that read.</pre>
       </div>
 
-      <h2 id="s3"><span class="step-n">Step 03</span>Client URL hooks behind Suspense</h2>
+      <h2 id="s3"><span class="step-n">Step 03 · one edit short</span>Client URL hooks behind Suspense</h2>
 
       <div class="files">
         <span class="file">app/ui/locale-switcher.tsx</span>
@@ -933,6 +942,67 @@ export function LocaleSwitcherSkeleton() {
         <span>No <code>CLIENT_HOOK_DYNAMIC</code> digest anywhere the sidebar renders. Verified against a real build: 16 failing paths dropped to <strong>12</strong>, and every dashboard path the sidebar alone was blocking is now clear, including <code>/en/dashboard</code> and <code>/en/dashboard/customers/create</code>. <code>/en</code> and <code>/ar</code> (home) are still open: <code>LocaleSwitcher</code> there is not yet wrapped, since it sits on the page directly rather than inside <code>SideNav</code>. That is the one edit left to close this step.</span>
       </div>
 
+      <h3>Finishing step 03</h3>
+
+      <p>Do this before starting step 04. It is the same fix as the sidebar, applied to the mount point the commit missed.</p>
+
+      <p><strong>Where:</strong> <code>app/[locale]/page.tsx</code> (the home page) and <code>app/ui/skeletons.tsx</code>.</p>
+
+      <p><strong>Current state.</strong> The home page renders the switcher bare, at line 18:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/[locale]/page.tsx · as it exists now</span><span class="tag">current</span></div>
+        <pre><code>&lt;div className="mb-2 flex justify-end"&gt;
+  <span class="del">&lt;LocaleSwitcher /&gt;</span>
+&lt;/div&gt;</code></pre>
+      </div>
+
+      <p><strong>What to change.</strong> Import <code>Suspense</code> from <code>react</code> and <code>LocaleSwitcherSkeleton</code> from <code>@/app/ui/skeletons</code>, then wrap it exactly as <code>SideNav</code> does:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/[locale]/page.tsx</span><span class="tag edit">edit</span></div>
+        <pre><code>&lt;div className="mb-2 flex justify-end"&gt;
+  <span class="add">&lt;Suspense fallback={&lt;LocaleSwitcherSkeleton /&gt;}&gt;</span>
+    &lt;LocaleSwitcher /&gt;
+  <span class="add">&lt;/Suspense&gt;</span>
+&lt;/div&gt;</code></pre>
+      </div>
+
+      <div class="note warn">
+        <span class="lbl">The skeleton needs one fix to survive this second mount point</span>
+        <p><code>LocaleSwitcherSkeleton</code> was written for the sidebar, where its parent is <code>md:w-full</code> and supplies a width. Its two placeholder pills are <code>flex-1</code> with no content, so in the home page's <code>flex justify-end</code> container, which imposes no width, they resolve to zero and the fallback renders invisible. Add a floor to the skeleton root in <code>app/ui/skeletons.tsx</code>:</p>
+        <div class="code">
+          <div class="code-head"><span class="path">app/ui/skeletons.tsx</span><span class="tag edit">edit</span></div>
+          <pre><code>export function LocaleSwitcherSkeleton() {
+  return (
+    &lt;div className="flex h-full <span class="add">min-w-[78px]</span> gap-1 text-sm"&gt;
+      &lt;div className="h-7 flex-1 rounded-md bg-gray-100" /&gt;
+      &lt;div className="h-7 flex-1 rounded-md bg-gray-100" /&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+        </div>
+        <p>78px is the measured width of the real switcher when it sizes to its content: two buttons at <code>px-2</code> around two-character labels at <code>text-sm</code>, plus a <code>gap-1</code>. In the sidebar the parent is wider, so the floor never binds and nothing changes there.</p>
+      </div>
+
+      <div class="check">
+        <span class="lbl">Checkpoint · closes step 03</span>
+        <span><code>pnpm build --debug-prerender</code> reports <strong>10</strong> failing paths, down from 12, and <code>/en</code> and <code>/ar</code> are no longer among them. Grep the output for <code>CLIENT_HOOK_DYNAMIC</code>: there should be no hits anywhere. Every remaining failure is now an uncached data read, which is what step 04 is for.</span>
+      </div>
+
+      <h4>Commit</h4>
+      <div class="commit">
+        <pre>fix(ui): wrap the home page locale switcher in suspense
+
+The previous commit wrapped both readers inside SideNav but missed the third
+mount point: LocaleSwitcher also renders directly on the home page, so /en
+and /ar still could not prerender.
+
+Give the skeleton a min-width as well. Its pills are flex-1 with no content,
+which collapses to nothing in the home page's justify-end container; the
+sidebar's md:w-full parent had been hiding that.</pre>
+      </div>
+
       <h4>Commit</h4>
       <div class="commit">
         <pre>perf(ui): stream url-dependent client components behind suspense
@@ -946,203 +1016,516 @@ Wrap each reader individually rather than wrapping SideNav once, so the
 sidebar frame stays in the shell and only the two dynamic pieces stream.</pre>
       </div>
 
-      <h2 id="s4"><span class="step-n">Step 04</span>Get the locale out of the data layer</h2>
+      <h2 id="s4"><span class="step-n">Step 04</span>Cache a read with <code>use cache</code></h2>
 
+      <h3>Concept</h3>
+      <p>The <a href="https://nextjs.org/docs/app/api-reference/directives/use-cache"><code>use cache</code></a> directive, and its companion <a href="https://nextjs.org/docs/app/api-reference/functions/cacheLife"><code>cacheLife</code></a>. This is the central API of the whole feature. Everything before this step was clearing obstacles; this is the first step that actually caches anything.</p>
+
+      <h3>Why now</h3>
+      <p>Steps 01 to 03 removed every blocker that lived in shared chrome. What is left blocking is no longer framework plumbing, it is your own database reads. Six of the ten remaining paths fail for exactly one reason: a page awaits a Postgres query that Next.js has no lifetime information for, so it cannot be prerendered.</p>
+
+      <div class="note">
+        <span class="lbl">The mental model to carry in</span>
+        <p>Under Cache Components, an uncached <code>await</code> is not "slow", it is <em>unprerenderable</em>. Next.js will not guess whether a value can be reused. <code>use cache</code> is you telling it "this result is reusable, and here is for how long". That declaration is what lets the result be baked into the static shell.</p>
+      </div>
+
+      <h3>Where</h3>
       <div class="files">
         <span class="file">app/lib/data.ts</span>
+      </div>
+      <p>One file. Four exported functions inside it: <code>fetchRevenue</code>, <code>fetchCustomers</code>, <code>fetchInvoiceById</code>, <code>fetchCustomerById</code>.</p>
+
+      <h3>Current state</h3>
+      <p><code>app/lib/data.ts</code> is the only module in the project that reads from Postgres. It opens a <code>postgres</code> client at module scope and exports ten query functions. None of them carries a cache directive today. Each currently looks like this:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/lib/data.ts · as it exists now</span><span class="tag">current</span></div>
+        <pre><code>export async function fetchCustomers() {
+  try {
+    const customers = await sql&lt;CustomerField[]&gt;`
+      SELECT id, name FROM customers ORDER BY name ASC
+    `;
+    return customers;
+  } catch (err) {
+    console.error("Database Error:", err);
+    throw new Error("Failed to fetch all customers.");
+  }
+}</code></pre>
+      </div>
+
+      <p>Four of the ten are safe to cache right now. The other six are not, and the reason why is step 05. What makes these four special is that <strong>none of them reads request state</strong>: no <code>getLocale()</code>, no cookies, no headers. Check for yourself before you edit:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">Terminal</span><span class="tag">verify</span></div>
+        <pre><code>grep -n "getLocale" app/lib/data.ts</code></pre>
+      </div>
+
+      <p>You should see three hits, in <code>fetchLatestInvoices</code>, <code>fetchCardData</code> and <code>fetchFilteredCustomers</code>. Those three are off limits this step. The four you are about to edit are not in that list.</p>
+
+      <h3>What to change</h3>
+
+      <p>Add the import at the top of the file:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/lib/data.ts</span><span class="tag edit">edit</span></div>
+        <pre><code>import postgres from "postgres";
+<span class="add">import { cacheLife } from "next/cache";</span>
+import { getLocale } from "next-intl/server";</code></pre>
+      </div>
+
+      <p>Then add a directive and a lifetime as the <strong>first two statements</strong> in each of the four function bodies, above the existing <code>try</code>. The directive must be the first statement in the body, exactly like <code>"use client"</code> at the top of a file.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Function</th><th>Profile</th><th>Reasoning</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>fetchRevenue</code></td><td><code>max</code></td><td>Twelve rows of seed data that have never once changed</td></tr>
+            <tr><td><code>fetchCustomers</code></td><td><code>hours</code></td><td>Dropdown options for the invoice forms; changes only when a customer is added or removed</td></tr>
+            <tr><td><code>fetchInvoiceById</code></td><td><code>minutes</code></td><td>Feeds an edit form, so it must not show a stale amount for long</td></tr>
+            <tr><td><code>fetchCustomerById</code></td><td><code>minutes</code></td><td>Same shape, same reasoning</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Concretely, for each of the four:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/lib/data.ts</span><span class="tag edit">edit</span></div>
+        <pre><code>export async function fetchCustomers() {
+<span class="add">  "use cache";
+  cacheLife("hours");
+</span>
+  try {
+    <span class="c">// ...body unchanged...</span>
+  }
+}
+
+export async function fetchInvoiceById(id: string) {
+<span class="add">  "use cache";
+  cacheLife("minutes");
+</span>
+  try {
+    <span class="c">// ...body unchanged...</span>
+  }
+}</code></pre>
+      </div>
+
+      <p>Do the same for <code>fetchRevenue</code> (<code>"max"</code>) and <code>fetchCustomerById</code> (<code>"minutes"</code>). Do not change any query, any return value, or any error handling.</p>
+
+      <div class="note">
+        <span class="lbl">Optional cleanup while you are in there</span>
+        <p><code>fetchInvoiceById</code> has a stray <code>console.log(invoice)</code> left over from the course. Caching means it will now fire only on a cache miss rather than every request, which makes it more confusing than useful. Deleting it is reasonable and unrelated to the lesson.</p>
+      </div>
+
+      <h3>Why this change works</h3>
+
+      <p>Two mechanisms are worth understanding, because step 05 depends on both.</p>
+
+      <p><strong>The lifetime is what makes prerendering possible.</strong> A <code>use cache</code> scope without <code>cacheLife</code> silently gets the <code>default</code> profile. The official docs recommend always pairing them so the behaviour is readable at the call site, and it matters more than style: a profile with a very short <code>stale</code> (under 30 seconds) is treated as short-lived and is <em>excluded</em> from the prerender, becoming a dynamic hole instead. Naming the profile is how you stay in control of that.</p>
+
+      <p><strong>Arguments become the cache key.</strong> <code>fetchInvoiceById("abc")</code> and <code>fetchInvoiceById("def")</code> are two separate entries. From the docs: the key is built from the build ID, a hash of the function's identity, and its serializable arguments. Values captured from an enclosing function scope get bound in as arguments too. This is the single most important property to internalise, and step 05 is entirely about its consequences.</p>
+
+      <div class="note warn">
+        <span class="lbl">Expect a regression here. It is the point of step 06.</span>
+        <p>Once <code>fetchInvoiceById</code> is cached, editing an invoice and returning to its edit form may show you the <em>old</em> amount for up to a minute. You have not broken anything. The existing <code>revalidatePath("/[locale]/dashboard/invoices", "page")</code> calls in <code>app/lib/actions.ts</code> name the <em>list</em> route, not the edit route, so they do not clear this new entry. Step 06 fixes it properly with tags. Notice the staleness now so that step 06 solves a problem you have actually felt.</p>
+      </div>
+
+      <h3>Checkpoint</h3>
+      <div class="check">
+        <span class="lbl">Checkpoint</span>
+        <span>Run <code>pnpm build --debug-prerender</code>. The failing path count drops from <strong>10 to 4</strong>. Specifically, all six of these clear: <code>/en</code> and <code>/ar</code> variants of <code>/dashboard/invoices/create</code>, <code>/dashboard/invoices/[id]/edit</code>, and <code>/dashboard/customers/[id]/edit</code>. The only routes still failing are the two list pages. If a route you expected to clear is still failing, read the frame in the error: it will name the function you missed.</span>
+      </div>
+
+      <h3>Learning takeaway</h3>
+      <p>A cached function is a promise you make to the framework: <em>this output is reusable for this long.</em> In exchange, its result can live in the static shell instead of costing a query per request. The promise is only safe when the output genuinely does not depend on who is asking, which is exactly the constraint step 05 runs into.</p>
+
+      <h4>Commit</h4>
+      <div class="commit">
+        <pre>perf(data): cache request-independent queries with use cache
+
+Add "use cache" with an explicit cacheLife to the four read functions that
+do not touch request state: fetchRevenue, fetchCustomers, fetchInvoiceById
+and fetchCustomerById.
+
+Profiles are chosen from how often each result actually changes rather than
+left to the implicit default, since a short stale window would exclude the
+entry from the prerender entirely.
+
+Clears the create and edit routes, which were blocking only on these reads.
+The remaining six read functions are handled separately: three of them call
+getLocale(), which a plain cached scope cannot do.</pre>
+      </div>
+
+      <h2 id="s5"><span class="step-n">Step 05</span>The request-data wall, and what cache keys cost</h2>
+
+      <h3>Concept</h3>
+      <p>Why a plain <code>use cache</code> scope cannot read request data, and why putting request-shaped values into a cache key is expensive even when it is legal. This is where Chapter 17's bilingual work collides with Chapter 18's caching model, and the collision is the lesson.</p>
+
+      <h3>Why now</h3>
+      <p>You just cached four functions. Try to cache a fifth, <code>fetchCardData</code>, the same way. It will not work, and the reason is not a bug. This step is about understanding the wall rather than working around it.</p>
+
+      <h3>Where</h3>
+      <div class="files">
+        <span class="file">app/lib/data.ts</span>
+        <span class="file">app/lib/definitions.ts</span>
         <span class="file">app/ui/dashboard/cards.tsx</span>
         <span class="file">app/ui/dashboard/latest-invoices.tsx</span>
         <span class="file">app/ui/customers/table.tsx</span>
       </div>
 
-      <p>Chapter 17 closed with a known gap: currency and date formatting live inside <code>app/lib/data.ts</code>, so three data functions call <code>getLocale()</code>. That was a tidiness complaint then. Here it is a hard blocker, because <strong>a plain <code>use cache</code> scope may not read request state</strong>, and <code>getLocale()</code> is request state.</p>
-
-      <p>Two ways out, and they are not equivalent.</p>
-
-      <p><strong>Option A, pass the locale in as an argument.</strong> Legal, and the documented pattern for runtime values. It also makes the locale part of the cache key, which means two entries per query holding identical numbers formatted differently.</p>
-
-      <p><strong>Option B, return raw values and format in the component.</strong> One cache entry serves both locales, the query stops being locale-shaped, and the chapter 17 gap closes on its own.</p>
+      <h3>Current state</h3>
+      <p>Three functions in <code>app/lib/data.ts</code> call <code>getLocale()</code> so they can format money before returning it. <code>fetchCardData</code> is representative:</p>
 
       <div class="code">
-        <div class="code-head"><span class="path">app/lib/data.ts</span><span class="tag edit">planned</span></div>
+        <div class="code-head"><span class="path">app/lib/data.ts · as it exists now</span><span class="tag">current</span></div>
         <pre><code>export async function fetchCardData() {
-  <span class="del">- const locale = await getLocale();      // blocks "use cache"</span>
-  ...
-  return { numberOfCustomers, numberOfInvoices,
-           <span class="add">totalPaid, totalPending</span> };   <span class="c">// numbers, not strings</span>
+  try {
+    <span class="del">const locale = await getLocale();</span>
+    <span class="c">// ...three parallel COUNT / SUM queries...</span>
+
+    return {
+      numberOfCustomers,
+      numberOfInvoices,
+      <span class="del">totalPaidInvoices: formatCurrency(data[2][0].paid ?? "0", locale),</span>
+      <span class="del">totalPendingInvoices: formatCurrency(data[2][0].pending ?? "0", locale),</span>
+    };
+  } catch (error) { <span class="c">/* ... */</span> }
 }</code></pre>
       </div>
 
+      <p>Chapter 17 introduced this. It was flagged at the time as a known gap, on tidiness grounds: formatting is a presentation concern and it had drifted into the data layer. Under Cache Components it stops being a matter of taste and becomes a hard blocker.</p>
+
+      <h3>Try it first, then read on</h3>
+      <p>Before making the real change, add <code>"use cache"</code> and <code>cacheLife("minutes")</code> to <code>fetchCardData</code> exactly the way you did in step 04, and run <code>pnpm build</code>. Read the error. Then undo it. Seeing the failure yourself is worth more than being told about it.</p>
+
+      <div class="note">
+        <span class="lbl">What you are seeing</span>
+        <p><code>getLocale()</code> resolves through next-intl's request configuration, which is per-request state. A plain <code>use cache</code> scope runs in an isolated environment that has no access to the incoming request, by design: if it could read the request, its output could differ per request, and then it would not be safe to reuse. The restriction is what makes the cache correct.</p>
+      </div>
+
+      <h3>The two ways out, and why they are not equal</h3>
+
+      <p><strong>Option A: hoist the locale and pass it in as an argument.</strong> This is legal and is the documented pattern for feeding runtime values into cached functions. The caller reads the locale outside the cached scope and passes it down:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">Option A · legal, but think about the cost</span><span class="tag">reference</span></div>
+        <pre><code>export async function fetchCardData(locale: string) {
+  "use cache";
+  cacheLife("minutes");
+  <span class="c">// locale is now part of the cache key</span>
+}</code></pre>
+      </div>
+
+      <p>The cost is in that last comment. Arguments become the cache key, so <code>fetchCardData("en")</code> and <code>fetchCardData("ar")</code> are two entries, running two identical <code>COUNT</code> queries, storing two copies of the same numbers, differing only in how they were rendered as text. Your hit rate halves for no gain. Add a third locale later and it thirds.</p>
+
+      <p><strong>Option B: return raw values and format in the component.</strong> The data layer returns what Postgres returned. The component formats at render time, where it already has a locale for free.</p>
+
       <div class="note ok">
-        <span class="lbl">The transferable idea</span>
-        <p>Anything locale-shaped, user-shaped or request-shaped baked into a cached value multiplies your cache entries by the cardinality of that thing. Formatting inside a cached query does not just read badly, it halves the hit rate. The same applies to currency, timezone and per-user labels.</p>
+        <span class="lbl">Take option B</span>
+        <p>One cache entry serves every locale, because the cached value is genuinely locale-independent: it is a number. The Chapter 17 gap closes as a side effect. And the general rule it teaches transfers well beyond i18n: <strong>anything request-shaped that you bake into a cached value multiplies your entry count by the cardinality of that thing.</strong> Currency, timezone, per-user labels and A/B buckets all behave identically.</p>
+      </div>
+
+      <h3>What to change</h3>
+
+      <p>Good news on types: the raw and formatted shapes <em>both already exist</em> in <code>app/lib/definitions.ts</code> from the original course. You are moving between two types that are already written, not inventing any.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Function</th><th>Return type today</th><th>Return type after</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>fetchLatestInvoices</code></td><td><code>LatestInvoice[]</code> (amount: string)</td><td><code>LatestInvoiceRaw[]</code> (amount: number)</td></tr>
+            <tr><td><code>fetchFilteredCustomers</code></td><td><code>FormattedCustomersTable[]</code></td><td><code>CustomersTableType[]</code> (raw numbers)</td></tr>
+            <tr><td><code>fetchCardData</code></td><td>totals as formatted strings</td><td>totals as numbers</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p><strong>1. In <code>app/lib/data.ts</code>,</strong> for each of the three functions: delete the <code>const locale = await getLocale();</code> line, delete the <code>.map()</code> or inline call that applies <code>formatCurrency</code>, and return the raw rows. Then add <code>"use cache"</code> plus a <code>cacheLife</code> the way you did in step 04. Use <code>minutes</code> for <code>fetchCardData</code> and <code>fetchLatestInvoices</code>. Leave <code>fetchFilteredCustomers</code> uncached for now and read the note below on search queries.</p>
+
+      <p>When the last <code>getLocale()</code> is gone, remove the now-unused import:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/lib/data.ts</span><span class="tag edit">edit</span></div>
+        <pre><code><span class="del">- import { getLocale } from "next-intl/server";</span></code></pre>
+      </div>
+
+      <p><strong>2. In the three consuming components,</strong> format at render time. Each is already an async Server Component that calls <code>getTranslations</code>, so adding <code>getLocale</code> alongside it is a one-line change. In <code>app/ui/dashboard/cards.tsx</code>:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/ui/dashboard/cards.tsx</span><span class="tag edit">edit</span></div>
+        <pre><code>import { getLocale, getTranslations } from "next-intl/server";
+import { formatCurrency } from "@/app/lib/utils";
+
+export default async function CardWrapper() {
+  const t = await getTranslations("Dashboard");
+  <span class="add">const locale = await getLocale();</span>
+  const { numberOfInvoices, numberOfCustomers, totalPaid, totalPending }
+    = await fetchCardData();
+
+  return (
+    &lt;&gt;
+      &lt;Card title={t("cardCollected")}
+            value={<span class="add">formatCurrency(totalPaid, locale)</span>}
+            type="collected" /&gt;
+      <span class="c">{/* ...same for pending... */}</span>
+    &lt;/&gt;
+  );
+}</code></pre>
+      </div>
+
+      <p>Apply the same shape to <code>app/ui/dashboard/latest-invoices.tsx</code> (format <code>invoice.amount</code> where it is rendered, around line 51) and <code>app/ui/customers/table.tsx</code> (format <code>customer.total_pending</code> and <code>customer.total_paid</code>, which are rendered in <strong>two</strong> places each, the mobile card list and the desktop table, around lines 45/49 and 109/112). Update the prop types to the raw variants listed in the table above.</p>
+
+      <div class="note warn">
+        <span class="lbl">Do not reflexively cache the search queries</span>
+        <p><code>fetchFilteredInvoices</code>, <code>fetchFilteredCustomers</code>, <code>fetchInvoicesPages</code> and <code>fetchCustomersPages</code> all take a <code>query</code> string that comes from the search box. That string would become part of the cache key, so a search box firing on every keystroke mints a fresh entry per prefix a user types: <code>c</code>, <code>ch</code>, <code>che</code>, and so on. Bounded in a demo, unbounded in production. Leave these uncached and let them stream, which is what the Suspense boundary in step 07 is for. Knowing what <em>not</em> to cache is half of using this feature well.</p>
       </div>
 
       <div class="note">
-        <span class="lbl">One thing that looks like a blocker and is not</span>
-        <p><code>formatDateToLocal</code> calls <code>new Date(dateStr)</code>. The prerender rejects <code>new Date()</code> with no arguments because it reads the clock. Constructing a Date from a fixed string is deterministic and fine. Likewise the <code>new Date()</code> in <code>createInvoice</code> sits in a Server Action, which never prerenders.</p>
+        <span class="lbl">A pre-existing bug you will notice here</span>
+        <p>While reading these functions you may spot that <code>fetchCustomersPages(query)</code> never uses its <code>query</code> argument: it counts every customer regardless of the search term, so customer search pagination has always been slightly wrong. That is a Chapter 16 bug, not a caching one. It is worth noting precisely because caching would have made it worse, keying entries on a value that does not affect the result. Fixing it is optional and out of scope for this chapter.</p>
       </div>
 
+      <h3>Why this change works</h3>
+      <p>After the refactor the cached value is a set of numbers, which is the same in every locale. The locale never enters the cache key, so <code>/en</code> and <code>/ar</code> share one entry. Formatting still happens per request, but it is pure CPU on an already-loaded value, not a database round trip, and it happens in the component that already knows the locale.</p>
+
+      <h3>Checkpoint</h3>
       <div class="check">
         <span class="lbl">Checkpoint</span>
-        <span><code>grep -rn "getLocale" app/lib/data.ts</code> returns nothing, and <code>/ar</code> still shows Arabic-Indic digits.</span>
+        <span>Three things. First, <code>grep -n "getLocale" app/lib/data.ts</code> returns nothing. Second, <code>pnpm build</code> still reports <strong>4</strong> failing paths, the two list pages, and no new ones: this step is about cacheability, not about clearing routes. Third and most important, run the app and confirm Chapter 17 still works: <code>/ar/لوحة-التحكم</code> must still show Arabic-Indic digits (<span class="ar">١٬٢٥٠٫٠٠</span>) and <code>/en/dashboard</code> must still show <code>$1,250.00</code>. If both locales now show the same digits, your formatting moved but your locale did not follow it.</span>
       </div>
+
+      <h3>Learning takeaway</h3>
+      <p>A cache key is a cost, not just an identity. Before passing a value into a cached function, ask how many distinct values it can take, because that is your entry count. Request-shaped data usually belongs <em>outside</em> the cached scope, applied to the cached result afterwards, rather than inside it.</p>
 
       <h4>Commit</h4>
       <div class="commit">
-        <pre>refactor(data): move currency and date formatting out of the data layer
+        <pre>refactor(data): move currency formatting out of the data layer
 
-Three read functions called getLocale() so they could format money and dates
-before returning. A plain "use cache" scope cannot read request state, so
-that call blocks caching outright.
+Three read functions called getLocale() so they could format money before
+returning. A plain "use cache" scope cannot read request state, so that call
+blocked caching outright.
 
-Return raw values and format in the components, which already have a locale.
-Passing the locale in as an argument would also work, but it becomes part of
-the cache key: one query would hold two entries per locale carrying identical
-numbers. Closes the formatting gap left open in chapter 17, and is worth
-keeping even if Cache Components were abandoned.</pre>
+Return raw numbers and format in the components, which already resolve a
+locale for their translations. Passing the locale in as an argument would
+also have worked, but it becomes part of the cache key: one query would then
+hold a separate entry per locale carrying identical numbers.
+
+The raw and formatted types both already existed in definitions.ts, so this
+moves between them rather than adding any. Closes the formatting gap left
+open in chapter 17, and is worth keeping even without Cache Components.</pre>
       </div>
 
-      <h2 id="s5"><span class="step-n">Step 05</span><code>use cache</code> and a deliberate <code>cacheLife</code></h2>
+      <h2 id="s6"><span class="step-n">Step 06</span>Invalidation: <code>cacheTag</code> and <code>updateTag</code></h2>
 
-      <div class="files">
-        <span class="file">app/lib/data.ts</span>
-      </div>
+      <h3>Concept</h3>
+      <p><a href="https://nextjs.org/docs/app/api-reference/functions/cacheTag"><code>cacheTag</code></a> to label cached data, and <a href="https://nextjs.org/docs/app/api-reference/functions/updateTag"><code>updateTag</code></a> to expire it after a mutation. Plus the distinction between the three invalidation APIs, which is the part most people get wrong.</p>
 
-      <p>With the locale gone, the read functions become cacheable. Each gets the directive and an explicit lifetime, because leaving it implicit gets hard to reason about as soon as scopes nest.</p>
+      <h3>Why now</h3>
+      <p>Because you have a bug, and you put it there in step 04. Caching a read without a way to invalidate it means every mutation in the app is now capable of showing stale data. Correctness before more optimisation.</p>
 
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr><th>Profile</th><th><code>stale</code></th><th><code>revalidate</code></th><th><code>expire</code></th></tr>
-          </thead>
-          <tbody>
-            <tr><td><code>default</code></td><td>5 min</td><td>15 min</td><td>never</td></tr>
-            <tr><td><code>seconds</code></td><td>30 s</td><td>1 s</td><td>1 min</td></tr>
-            <tr><td><code>minutes</code></td><td>5 min</td><td>1 min</td><td>1 hour</td></tr>
-            <tr><td><code>hours</code></td><td>5 min</td><td>1 hour</td><td>1 day</td></tr>
-            <tr><td><code>days</code></td><td>5 min</td><td>1 day</td><td>1 week</td></tr>
-            <tr><td><code>max</code></td><td>5 min</td><td>30 days</td><td>1 year</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <p>The three properties answer three different questions. <code>stale</code> is how long the browser's router reuses what it has without asking. <code>revalidate</code> is how long before the server refreshes in the background while still serving the old value. <code>expire</code> is when the server stops serving the old value and the next request waits.</p>
-
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr><th>Function</th><th>Profile</th><th>Because</th></tr>
-          </thead>
-          <tbody>
-            <tr><td><code>fetchRevenue</code></td><td><code>max</code></td><td>Twelve rows of seed data that have never changed</td></tr>
-            <tr><td><code>fetchCardData</code></td><td><code>minutes</code></td><td>Aggregates that move whenever an invoice is written</td></tr>
-            <tr><td><code>fetchLatestInvoices</code></td><td><code>minutes</code></td><td>Same, and visibly wrong if stale for long</td></tr>
-            <tr><td><code>fetchCustomers</code></td><td><code>hours</code></td><td>Dropdown options for the invoice form</td></tr>
-            <tr><td><code>fetchInvoiceById</code>, <code>fetchCustomerById</code></td><td><code>minutes</code></td><td>Edit forms, must not show a stale amount</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="note warn">
-        <span class="lbl">Do not cache the search queries reflexively</span>
-        <p><code>fetchFilteredInvoices</code> and <code>fetchFilteredCustomers</code> take <code>query</code> and <code>currentPage</code>, and both land in the cache key. A search box firing per keystroke mints an entry per prefix typed. Bounded in a demo, unbounded in production. If the entry count looks silly, leave these two uncached and let them stream, which is what step 07's boundary is for.</p>
-      </div>
-
-      <div class="check">
-        <span class="lbl">Checkpoint</span>
-        <span>Load <code>/en/dashboard</code> twice. The second render logs no second round of Postgres queries for the cached functions.</span>
-      </div>
-
-      <h4>Commit</h4>
-      <div class="commit">
-        <pre>perf(data): cache read queries with use cache and explicit cache lifetimes
-
-Add "use cache" to the read paths in app/lib/data.ts, each with a cacheLife
-profile chosen from how often that data actually changes rather than left to
-the implicit default: max for the fixed revenue rows, hours for the customer
-dropdown, minutes for anything an invoice write moves.
-
-Entries are in-memory, so they do not survive a deployment or a serverless
-instance teardown. Durable storage needs "use cache: remote" and a cache
-handler this project does not have.</pre>
-      </div>
-
-      <h2 id="s6"><span class="step-n">Step 06</span>Tags, and telling the invalidation APIs apart</h2>
-
+      <h3>Where</h3>
       <div class="files">
         <span class="file">app/lib/data.ts</span>
         <span class="file">app/lib/actions.ts</span>
       </div>
 
-      <p>The app invalidates with six calls that all look like <code>revalidatePath("/[locale]/dashboard/invoices", "page")</code>. That works and keeps working. It is also blunt: it names a route rather than the data, so it discards more than it needs to and says nothing about what changed. Tags name the data.</p>
+      <h3>Current state</h3>
+      <p><code>app/lib/actions.ts</code> is the only module that writes to Postgres. It invalidates with six calls that all take this shape:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/lib/actions.ts · as it exists now</span><span class="tag">current</span></div>
+        <pre><code>revalidatePath("/[locale]/dashboard/invoices", "page");
+redirect({ href: "/dashboard/invoices", locale: await getLocale() });</code></pre>
+      </div>
+
+      <p>They appear in <code>createInvoice</code>, <code>updateInvoice</code>, <code>deleteInvoice</code>, <code>createCustomer</code>, <code>updateCustomer</code> and <code>deleteCustomer</code>. This still works, and Chapter 17's trick of using the literal <code>[locale]</code> segment so both locales invalidate at once still works too. But it names a <em>route</em>, and your new cache entries are keyed by <em>data</em>. Editing an invoice revalidates the list route while <code>fetchInvoiceById(id)</code>, which backs the edit form, keeps its entry.</p>
+
+      <h3>What to change</h3>
+
+      <p><strong>1. Tag the reads</strong> in <code>app/lib/data.ts</code>. Import <code>cacheTag</code> alongside <code>cacheLife</code>, then add one tag call inside each cached scope. Use two coarse tags, <code>"invoices"</code> and <code>"customers"</code>:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/lib/data.ts</span><span class="tag edit">edit</span></div>
+        <pre><code><span class="add">import { cacheLife, cacheTag } from "next/cache";</span>
+
+export async function fetchInvoiceById(id: string) {
+  "use cache";
+  <span class="add">cacheTag("invoices");</span>
+  cacheLife("minutes");
+  <span class="c">// ...</span>
+}</code></pre>
+      </div>
 
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>API</th><th>Behaviour</th><th>Use when</th></tr>
+            <tr><th>Function</th><th>Tag</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>fetchInvoiceById</code>, <code>fetchLatestInvoices</code></td><td><code>invoices</code></td></tr>
+            <tr><td><code>fetchCustomerById</code>, <code>fetchCustomers</code></td><td><code>customers</code></td></tr>
+            <tr><td><code>fetchCardData</code></td><td>both, call <code>cacheTag</code> twice</td></tr>
+            <tr><td><code>fetchRevenue</code></td><td>none, it is seed data nothing mutates</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p><code>fetchCardData</code> takes both tags because its totals move when either table changes. <code>cacheTag</code> accepts multiple calls in one scope.</p>
+
+      <p><strong>2. Swap the invalidation</strong> in <code>app/lib/actions.ts</code>. Replace each <code>revalidatePath</code> with <code>updateTag</code> naming the table the action touched:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/lib/actions.ts</span><span class="tag edit">edit</span></div>
+        <pre><code><span class="del">- import { revalidatePath } from "next/cache";</span>
+<span class="add">+ import { updateTag } from "next/cache";</span>
+
+  <span class="c">// ...inside updateInvoice, and the five sibling actions...</span>
+<span class="del">- revalidatePath("/[locale]/dashboard/invoices", "page");</span>
+<span class="add">+ updateTag("invoices");</span>
+  redirect({ href: "/dashboard/invoices", locale: await getLocale() });</code></pre>
+      </div>
+
+      <p>Use <code>updateTag("invoices")</code> in the three invoice actions and <code>updateTag("customers")</code> in the three customer actions. Note that <code>deleteCustomer</code> can return early with a refusal when the customer still has invoices; only call <code>updateTag</code> on the path where a delete actually happened.</p>
+
+      <div class="note warn">
+        <span class="lbl">You will find a bug while doing this, and it makes the argument for you</span>
+        <p>Look at <code>deleteCustomer</code>, at <code>app/lib/actions.ts</code> line 270. It calls:</p>
+        <div class="code">
+          <div class="code-head"><span class="path">app/lib/actions.ts · the bug</span><span class="tag">current</span></div>
+          <pre><code>await sql`DELETE FROM customers WHERE id = ${id}`;
+<span class="c">// ...</span>
+<span class="del">revalidatePath("/[locale]/dashboard/invoices", "page");   // wrong route</span></code></pre>
+        </div>
+        <p>It deletes a <em>customer</em> and then revalidates the <em>invoices</em> route. The customers list is never invalidated, so a deleted customer can linger there. This predates Chapter 18 and has nothing to do with caching, but it is the sharpest possible argument for tags: the path is a string that has to be kept in sync with a route tree by hand, and nothing type-checks it, so it silently drifted. <code>updateTag("customers")</code> in a function called <code>deleteCustomer</code> is a much harder mistake to make. Converting this call fixes the bug as a side effect.</p>
+      </div>
+
+      <h3>Why this change works, and why <code>updateTag</code> specifically</h3>
+
+      <p>There are three invalidation APIs and they are not interchangeable. This is the table worth remembering:</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>API</th><th>Where it may be called</th><th>Behaviour</th><th>Right for</th></tr>
           </thead>
           <tbody>
             <tr>
               <td><code>updateTag(tag)</code></td>
-              <td>Expires the tag so the next request <strong>waits</strong> for fresh data</td>
-              <td>The user just made this change and must see it. Server Actions only.</td>
+              <td>Server Actions only</td>
+              <td>Expires immediately; the next request <strong>waits</strong> for fresh data</td>
+              <td>Read-your-own-writes</td>
             </tr>
             <tr>
               <td><code>revalidateTag(tag, profile)</code></td>
-              <td>Serves the stale value while refreshing behind it</td>
-              <td>A webhook or background event. The profile argument is now required.</td>
+              <td>Actions and Route Handlers</td>
+              <td>Stale-while-revalidate; serves the old value while refreshing</td>
+              <td>Webhooks, background events</td>
             </tr>
             <tr>
               <td><code>revalidatePath(path)</code></td>
-              <td>Unchanged from the old model</td>
-              <td>You want a whole route gone, tags or not</td>
+              <td>Anywhere</td>
+              <td>Drops everything for a route</td>
+              <td>When you do not know the tags</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <p>Every invalidation here follows a user edit, so all six become <code>updateTag</code>. Read-your-own-writes is exactly its case: with <code>revalidateTag</code> the user submits the edit, gets redirected, and sees their old value while the refresh happens behind them.</p>
+      <p>Every mutation in this app is a user editing their own data and then being redirected to look at it. That is the textbook read-your-own-writes case, so <code>updateTag</code> is correct. <code>revalidateTag</code> would be actively wrong here: it serves the stale value while refreshing behind the scenes, so the user would submit an edit, get redirected, and see their old amount looking back at them. Note also that <code>revalidateTag</code> now <em>requires</em> a cache profile as its second argument.</p>
 
       <div class="note warn">
-        <span class="lbl">Tags are stored in plain text</span>
-        <p>Cache keys and tag names are not hashed. A cached function's arguments serialise straight into its key, and <code>cacheTag</code> values are stored as written. Tag on stable identifiers. Never put an email, a token or anything personal in a tag or a cached function's arguments.</p>
+        <span class="lbl">Tags and keys are stored in plain text</span>
+        <p>Neither cache keys nor tag names are hashed. A cached function's arguments are serialized straight into its key, and <code>cacheTag</code> values are stored as written. Tag on stable identifiers only. Never put an email address, a token, or anything personal in a tag or in a cached function's arguments.</p>
       </div>
 
+      <h3>Checkpoint</h3>
       <div class="check">
         <span class="lbl">Checkpoint</span>
-        <span>Edit an invoice amount, submit, and land on the list with the new amount already showing. Not the old one, not a flash of the old one.</span>
+        <span>This one is behavioural, not a build check. With <code>pnpm dev</code> running and logged in, edit an invoice's amount, submit, and let it redirect you to the list. The new amount must be there immediately. Then open that invoice's edit form again: the new amount must be there too, which is the case that was broken after step 04. Do it once in <code>/en</code> and once in <code>/ar</code>. Also confirm the dashboard cards update after creating an invoice, which is what the double tag on <code>fetchCardData</code> buys you.</span>
       </div>
+
+      <h3>Learning takeaway</h3>
+      <p>Caching a read is only half a feature; the other half is deciding how it becomes wrong and who is responsible for noticing. Tags let you describe invalidation in terms of the data that changed rather than the URLs that happen to display it, which is both more precise and more durable when routes get renamed.</p>
 
       <h4>Commit</h4>
       <div class="commit">
-        <pre>refactor(actions): replace revalidatePath with tagged cache invalidation
+        <pre>refactor(actions): invalidate cached reads by tag instead of by path
 
-Tag the cached queries with cacheTag and invalidate by tag instead of by
-route. The six revalidatePath calls named a path, so they threw away more
-than they had to and said nothing about what had changed.
+Tag the cached read functions with cacheTag and replace the six
+revalidatePath calls with updateTag naming the table each action touched.
 
-Every invalidation here follows a user edit, so all six become updateTag
-rather than revalidateTag: updateTag makes the next request wait for fresh
-data, which is what read-your-own-writes needs. revalidateTag would serve
-the stale value back to the user who just changed it.</pre>
+revalidatePath names a route, but the entries added in the previous two
+steps are keyed by data, so editing an invoice revalidated the list route
+while the edit form kept serving its cached row.
+
+updateTag rather than revalidateTag because every mutation here is followed
+by a redirect to look at the result: read-your-own-writes needs the next
+request to wait for fresh data, where revalidateTag would serve the stale
+value back to the user who just changed it.</pre>
       </div>
 
-      <h2 id="s7"><span class="step-n">Step 07</span>Push <code>searchParams</code> behind Suspense</h2>
+      <h2 id="s7"><span class="step-n">Step 07</span>Streaming what genuinely cannot be cached</h2>
 
+      <h3>Concept</h3>
+      <p>Runtime APIs, <code>searchParams</code> in particular, and the "push the dynamic read down" pattern. The counterpart to <code>use cache</code>: what to do with data that is legitimately different on every single request.</p>
+
+      <h3>Why now</h3>
+      <p>Four paths are still failing, and no amount of caching will fix them. A search result depends on a URL that does not exist until someone types into the box. This is the case Cache Components answers with streaming rather than caching, and it is the last blocker in the app.</p>
+
+      <h3>Where</h3>
       <div class="files">
         <span class="file">app/[locale]/dashboard/invoices/page.tsx</span>
         <span class="file">app/[locale]/dashboard/customers/page.tsx</span>
       </div>
 
-      <p>Both list pages await <code>searchParams</code> at the top of the component, so the heading and the search box wait on a value neither uses. Stop awaiting and start passing: the promise goes into a child inside a boundary, and the <code>await</code> happens there.</p>
+      <h3>Current state</h3>
+      <p>Both list pages have the same shape. Using the invoices one:</p>
 
       <div class="code">
-        <div class="code-head"><span class="path">app/[locale]/dashboard/invoices/page.tsx</span><span class="tag edit">planned</span></div>
-        <pre><code>export default function Page(props: {...}) {
+        <div class="code-head"><span class="path">app/[locale]/dashboard/invoices/page.tsx · as it exists now</span><span class="tag">current</span></div>
+        <pre><code>export default async function Page(props: {
+  searchParams?: Promise&lt;{ query?: string; page?: string }&gt;;
+}) {
+  const t = await getTranslations("Invoices");
+  <span class="del">const searchParams = await props.searchParams;   // the whole page waits here</span>
+
+  const query = searchParams?.query || "";
+  const currentPage = Number(searchParams?.page) || 1;
+  <span class="del">const totalPages = await fetchInvoicesPages(query);</span>
+
   return (
     &lt;div className="w-full"&gt;
-      <span class="c">{/* heading and search box prerender into the shell */}</span>
+      &lt;h1&gt;{t("title")}&lt;/h1&gt;
+      &lt;Search placeholder={t("search")} /&gt;
+      &lt;Suspense key={query + currentPage} fallback={&lt;InvoicesTableSkeleton /&gt;}&gt;
+        &lt;Table query={query} currentPage={currentPage} /&gt;
+      &lt;/Suspense&gt;
+      &lt;Pagination totalPages={totalPages} /&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+      </div>
+
+      <p>Note that there is <em>already</em> a Suspense boundary around the table, added during the original course. It is not enough, and the reason is precise: <code>await props.searchParams</code> happens at the top of the page component, above the boundary. Everything below it, heading included, waits on a value that only the heading does not need.</p>
+
+      <h3>What to change</h3>
+
+      <p>Stop awaiting the promise and start passing it. The page component becomes synchronous in its dynamic parts; a child inside a boundary does the awaiting.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/[locale]/dashboard/invoices/page.tsx</span><span class="tag edit">edit</span></div>
+        <pre><code>export default async function Page(props: {
+  searchParams?: Promise&lt;{ query?: string; page?: string }&gt;;
+}) {
+  const t = await getTranslations("Invoices");
+  <span class="c">// no await on searchParams here any more</span>
+
+  return (
+    &lt;div className="w-full"&gt;
       &lt;h1&gt;{t("title")}&lt;/h1&gt;
       &lt;Search placeholder={t("search")} /&gt;
 
@@ -1153,133 +1536,168 @@ the stale value back to the user who just changed it.</pre>
   );
 }
 
-<span class="add">async function InvoicesResults({ searchParams }) {
-  const { query, page } = await searchParams;   <span class="c">// awaited inside</span>
-  ...
+<span class="add">async function InvoicesResults({ searchParams }: {
+  searchParams?: Promise&lt;{ query?: string; page?: string }&gt;;
+}) {
+  const params = await searchParams;              <span class="c">// awaited inside the boundary</span>
+  const query = params?.query || "";
+  const currentPage = Number(params?.page) || 1;
+  const totalPages = await fetchInvoicesPages(query);
+
+  return (
+    &lt;&gt;
+      &lt;Table query={query} currentPage={currentPage} /&gt;
+      &lt;div className="mt-5 flex w-full justify-center"&gt;
+        &lt;Pagination totalPages={totalPages} /&gt;
+      &lt;/div&gt;
+    &lt;/&gt;
+  );
 }</span></code></pre>
       </div>
 
-      <div class="check">
-        <span class="lbl">Checkpoint</span>
-        <span><code>/en/dashboard/invoices</code> appears as <code>◐</code> rather than <code>ƒ</code>.</span>
-      </div>
-
-      <h4>Commit</h4>
-      <div class="commit">
-        <pre>perf(invoices,customers): stream search results behind suspense boundaries
-
-Both list pages awaited searchParams at the top of the component, so the
-heading and the search box waited on a value neither of them uses. Pass the
-promise into a child inside a Suspense boundary and await it there, leaving
-the static parts of the page in the shell.</pre>
-      </div>
-
-      <h2 id="s8"><span class="step-n">Step 08</span>The session read</h2>
-
-      <div class="files">
-        <span class="file">app/ui/dashboard/sidenav.tsx</span>
-        <span class="file">app/[locale]/dashboard/layout.tsx</span>
-      </div>
-
-      <p>A session read is a cookie read, so it can never be in the static shell. It always streams. The only question is how much of the page it drags with it.</p>
-
-      <p>For anything derived from the session there is a third directive worth knowing:</p>
-
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr><th></th><th><code>use cache</code></th><th><code>use cache: private</code></th></tr>
-          </thead>
-          <tbody>
-            <tr><td>Can read <code>cookies()</code> / <code>headers()</code></td><td>No</td><td>Yes</td></tr>
-            <tr><td>Can read <code>searchParams</code></td><td>No</td><td>Yes</td></tr>
-            <tr><td>Can call <code>connection()</code></td><td>No</td><td>No</td></tr>
-            <tr><td>Stored on the server</td><td>Yes</td><td><strong>Never</strong></td></tr>
-            <tr><td>Survives a page reload</td><td>Yes</td><td>No, browser memory only</td></tr>
-            <tr><td>In the static shell</td><td>Yes</td><td>No, runs every render</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <p>The documented shape: resolve the user inside a private scope, then pass only the <em>id</em> into a plain cached function. The session stays browser-only; the data it points at caches on the server under a key that is just an id.</p>
-
-      <div class="code">
-        <div class="code-head"><span class="path">the pattern</span><span class="tag">reference</span></div>
-        <pre><code>export async function getCurrentUser() {
-  <span class="add">"use cache: private";</span>          <span class="c">// may read cookies()</span>
-  const { userId } = await getSession();
-  if (!userId) redirect("/login");   <span class="c">// throws, so never cached</span>
-  return { id: userId };
-}
-
-async function getNotesByUserId(userId: string) {
-  <span class="add">"use cache";</span>                      <span class="c">// server-side, keyed by id</span>
-  cacheTag(`notes:${userId}`);
-  cacheLife("minutes");
-  ...
-}</code></pre>
-      </div>
+      <p>Move <code>Table</code> and <code>Pagination</code> together into the new child, since both need the resolved params. The old inner <code>Suspense key={query + currentPage}</code> wrapper around <code>Table</code> becomes redundant once the outer boundary is keyed by nothing but the request; you can drop it. Apply the identical transformation to the customers page, which uses <code>CustomersTable</code>, <code>fetchCustomersPages</code> and <code>CustomersTableSkeleton</code>.</p>
 
       <div class="note">
-        <span class="lbl">Keep the inner function unexported</span>
-        <p><code>getNotesByUserId</code> is unexported on purpose. If it were exported, any caller could pass someone else's id and read their data. Resolving the user inside the exported wrapper is what makes the id safe to trust.</p>
+        <span class="lbl">Push the read down, do not wrap the world</span>
+        <p>It is tempting to wrap the entire page body in one boundary and move on. That builds, and it throws away most of the benefit, because everything inside a boundary leaves the static shell. The useful version keeps the boundary as small as the set of components that genuinely need the URL. Here the heading and the search input stay outside it and ship in the shell.</p>
       </div>
 
-      <p>This app fetches nothing per-user, since every invoice belongs to the one demo account, so the practical work here is the <code>SideNav</code> boundary. The private-cache pattern is recorded because it is the piece that generalises.</p>
+      <h3>Why this change works</h3>
+      <p>A promise is not a blocking read until something awaits it. Passing <code>props.searchParams</code> down as a prop hands the <em>obligation</em> to await into a subtree that Next.js is allowed to render later. The page above it has no request dependency left, so it prerenders; the child streams in when the request arrives and the URL is finally known.</p>
 
+      <p>The same rule governs the client hooks you dealt with in step 03. <code>useSearchParams</code> can never resolve at build time, which is why it always needs a boundary. Server-side <code>searchParams</code> and client-side <code>useSearchParams</code> are the same constraint wearing different clothes.</p>
+
+      <h3>Checkpoint</h3>
       <div class="check">
         <span class="lbl">Checkpoint</span>
-        <span>Logged out, <code>/en/dashboard</code> still redirects to <code>/en/login</code>. Test against a running server, not by reading <code>proxy.ts</code>.</span>
+        <span><code>pnpm build</code> reports <strong>no failing paths</strong> and exits 0 for the first time since step 01. In the route table, <code>/[locale]/dashboard/invoices</code> and <code>/[locale]/dashboard/customers</code> should now show as partially prerendered rather than fully dynamic. Then run the app and confirm search and pagination still work in both locales, including with an Arabic query string.</span>
       </div>
+
+      <h3>Learning takeaway</h3>
+      <p>Cache Components gives you two tools, not one. <code>use cache</code> for anything reusable, <code>&lt;Suspense&gt;</code> for anything genuinely per-request, and the skill is telling the two apart honestly. Reaching for a cache on a search result would have been the wrong instinct even though it compiles.</p>
 
       <h4>Commit</h4>
       <div class="commit">
-        <pre>perf(dashboard): stream the sidenav session read behind a boundary
+        <pre>perf(dashboard): stream search results behind a suspense boundary
 
-A top-level await in a layout holds the whole segment behind that request,
-{children} included, so every page under the dashboard lost its shell to the
-sidebar's session and locale reads.
+Both list pages awaited searchParams at the top of the page component, so
+the heading and the search input waited on a value neither of them reads.
 
-Verified logged out against a running server, since both auth bypasses in
-chapter 17 passed tsc and the build while still being broken.</pre>
+Pass the promise into a child inside the boundary and await it there. The
+static half of each page now prerenders and only the results stream, which
+clears the last routes that could not produce a static shell.</pre>
       </div>
 
-      <h2 id="s9"><span class="step-n">Step 09</span>Measure it, or the chapter did not happen</h2>
+      <h2 id="s8"><span class="step-n">Step 08</span>Read the result</h2>
 
-      <p>The deliverable is a diff in the build output, recorded rather than described.</p>
+      <h3>Concept</h3>
+      <p>Interpreting the build output. Not a new API: the point of this step is that you can now <em>see</em> what the previous seven did, and say something true about it.</p>
+
+      <h3>Where</h3>
+      <div class="files">
+        <span class="file">Terminal</span>
+        <span class="file">docs/chapter-18-cache-components/index.html</span>
+      </div>
+
+      <h3>What to do</h3>
+      <p>Run a clean production build and read the route table at the end:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">Terminal</span><span class="tag">verify</span></div>
+        <pre><code>pnpm build</code></pre>
+      </div>
 
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>Symbol</th><th>Meaning</th><th>Before</th><th>Target</th></tr>
+            <tr><th>Symbol</th><th>Meaning</th><th>Before the chapter</th></tr>
           </thead>
           <tbody>
-            <tr><td><code>○</code></td><td>Fully prerendered</td><td>1 (the 404)</td><td>login, home</td></tr>
-            <tr><td><code>◐</code></td><td>Shell prerendered, rest streams</td><td>0</td><td>the dashboard routes</td></tr>
-            <tr><td><code>ƒ</code></td><td>Rendered on demand</td><td>11</td><td>as few as possible</td></tr>
+            <tr><td><code>○</code></td><td>Fully prerendered</td><td>1, and it was the 404 page</td></tr>
+            <tr><td><code>◐</code></td><td>Shell prerendered, rest streams</td><td>0</td></tr>
+            <tr><td><code>ƒ</code></td><td>Rendered on demand</td><td>11, every route a user can visit</td></tr>
           </tbody>
         </table>
       </div>
 
-      <p>Three things to capture, in this order:</p>
+      <p>Record three things in this document, replacing the projections with what actually happened:</p>
       <ol class="body-list">
-        <li>The route table before and after, verbatim.</li>
-        <li>The count of routes with a non-empty shell. The honest headline number.</li>
-        <li>Any route still needing <code>instant = false</code>, and why. A route that had to opt out is a finding, not a failure, but it has to be named.</li>
+        <li>The route table before and after, copied verbatim rather than described.</li>
+        <li>The count of routes that ended up with a non-empty static shell. This is the honest headline number for the chapter.</li>
+        <li>Any route still carrying <code>instant = false</code>, and why. A deliberate opt-out is a finding worth naming, not a failure to hide.</li>
       </ol>
 
       <div class="note warn">
-        <span class="lbl">What this step is not</span>
-        <p>It is not an LCP number. Measuring real load time needs a deployed build, a throttled connection, and a page a cold visitor can reach. That is its own chapter, and calling a local build table a performance result is the fastest way to put a number on a CV that does not survive being asked about.</p>
+        <span class="lbl">What this number is not</span>
+        <p>It is not an LCP figure and it is not a performance result. A build table says what Next.js was able to prerender. What a user feels needs a deployed build, a cold cache, a throttled connection, and a route they can actually reach. Calling this a performance win would be the fastest way to put a number on a CV that does not survive the first follow-up question.</p>
       </div>
+
+      <h3>Final regression pass</h3>
+      <p>Cache Components touched rendering, i18n config and the data layer, so re-verify Chapter 17 end to end before calling the chapter done:</p>
+      <ul>
+        <li><code>/en</code> and <code>/ar</code> both load, and the locale switcher moves between them.</li>
+        <li>Arabic routes still resolve at their translated slugs (<code>/ar/لوحة-التحكم/الفواتير</code>).</li>
+        <li><code>dir="rtl"</code> is still set under <code>/ar</code> and the layout still mirrors.</li>
+        <li>Currency still renders as <span class="ar">١٬٢٥٠٫٠٠</span> under <code>/ar</code> and <code>$1,250.00</code> under <code>/en</code>. This is the one most likely to have broken, since step 05 moved that code.</li>
+        <li>Logged out, <code>/en/dashboard</code> still redirects to <code>/en/login</code>. Test it against a running server, not by reading <code>proxy.ts</code>. Both auth bypasses in Chapter 17 passed <code>tsc</code> and the build while being completely broken.</li>
+        <li>Invoice and customer create, edit and delete all still work in both locales.</li>
+      </ul>
+
+      <h3>Learning takeaway</h3>
+      <p>The build output is the feature's primary feedback channel. Being able to read it, and to say which routes have a shell and why the rest do not, is the actual competence this chapter was after.</p>
 
       <h4>Commit</h4>
       <div class="commit">
-        <pre>docs(ch18): rewrite the chapter as a build record
+        <pre>docs(ch18): record the cache components build result
 
-Replace the plan with what actually happened: the before and after route
-tables verbatim, the count of routes that ended up with a non-empty static
-shell, and any route still carrying instant = false along with the reason.</pre>
+Replace the projected route counts with the real before and after tables,
+the number of routes that ended up with a non-empty static shell, and any
+route still opted out of validation along with the reason.</pre>
+      </div>
+
+      <h2 id="notimpl">Concepts this project deliberately does not demonstrate</h2>
+
+      <p>Cache Components has a wider surface than this chapter uses. These were considered and left out on purpose, because forcing them into this app would have meant writing code that exists only to exercise an API. Each is worth knowing about even without implementing it here.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Concept</th><th>What it does</th><th>Why not here</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>use cache: private</code></td>
+              <td>Caches a scope that reads <code>cookies()</code>, <code>headers()</code> or <code>searchParams</code>, keeping the result in browser memory only and never on the server</td>
+              <td><strong>There is no session read anywhere in this app's render tree.</strong> Authentication is enforced entirely in <code>proxy.ts</code>, which runs before rendering and is never prerendered. Nothing in any page or component reads the session, so there is no honest place to put it. See the note below.</td>
+            </tr>
+            <tr>
+              <td><code>use cache: remote</code></td>
+              <td>Durable, shared cache storage that survives deployments and serverless instance teardown</td>
+              <td>Requires a configured cache handler. Plain <code>use cache</code> is in-memory: entries die with the instance and do not persist across deployments. That is a real production limitation of what this chapter builds, and worth stating plainly rather than papering over.</td>
+            </tr>
+            <tr>
+              <td><code>generateStaticParams</code> for <code>[id]</code> routes</td>
+              <td>Prerenders a subset of dynamic paths at build time</td>
+              <td>Used for <code>[locale]</code> in step 01, where two values are the complete set. For invoice and customer ids the correct pattern is to return a <em>small subset</em> and let the rest render on request. With a seeded demo database there is no meaningful subset to choose, so it would teach the mechanic without the judgement.</td>
+            </tr>
+            <tr>
+              <td><code>revalidateTag</code></td>
+              <td>Stale-while-revalidate invalidation from actions or route handlers</td>
+              <td>Explained and contrasted in step 06 but not used, because every mutation in this app is read-your-own-writes, where it would be the wrong choice. Reach for it from a webhook.</td>
+            </tr>
+            <tr>
+              <td><code>instant = false</code></td>
+              <td>Marks a segment as allowed to block, deferring validation</td>
+              <td>Documented in the escape hatch section below. Not used, because every blocker in this app turned out to be fixable, and using it to turn a build green without reading the error wastes the entire feature.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <span class="lbl">On the missing session read</span>
+        <p>This is worth dwelling on, because it is a genuine architectural consequence rather than a gap in the exercise. Chapter 17 put the auth check in <code>proxy.ts</code> deliberately, after two bypasses proved that the <code>authorized()</code> callback was not being enforced. A middleware-level guard means no page ever calls <code>auth()</code>, which in turn means no page has a cookie read to prerender around. The dashboard's static shell is therefore <em>larger</em> than it would be in an app that checks the session inside the layout. An architectural decision made for security reasons paid off again, for performance reasons, two chapters later.</p>
+        <p>If you want to see <code>use cache: private</code> in practice, the pattern is: resolve the user inside a private scope, then pass only the user <em>id</em> into a plain cached function. The session stays browser-only while the data it points at caches on the server under a key that is just an id. Keep the inner function unexported so no caller can pass someone else's id.</p>
       </div>
 
       <h2 id="escape">The escape hatch, and when using it is correct</h2>
@@ -1340,15 +1758,15 @@ shell, and any route still carrying instant = false along with the reason.</pre>
             <tr><th>Step</th><th>Commit</th></tr>
           </thead>
           <tbody>
-            <tr><td>01</td><td><code>build(cache):</code> enable cache components and enumerate locale root params</td></tr>
-            <tr><td>02</td><td><code>fix(i18n):</code> resolve the locale from root params instead of the request</td></tr>
-            <tr><td>03</td><td><code>perf(ui):</code> stream url-dependent client components behind suspense</td></tr>
-            <tr><td>04</td><td><code>refactor(data):</code> move currency and date formatting out of the data layer</td></tr>
-            <tr><td>05</td><td><code>perf(data):</code> cache read queries with use cache and explicit cache lifetimes</td></tr>
-            <tr><td>06</td><td><code>refactor(actions):</code> replace revalidatePath with tagged cache invalidation</td></tr>
-            <tr><td>07</td><td><code>perf(invoices,customers):</code> stream search results behind suspense boundaries</td></tr>
-            <tr><td>08</td><td><code>perf(dashboard):</code> stream the sidenav session read behind a boundary</td></tr>
-            <tr><td>09</td><td><code>docs(ch18):</code> rewrite the chapter as a build record</td></tr>
+            <tr><td>01 <span class="c">done</span></td><td><code>build(cache):</code> enable cache components and enumerate locale root params</td></tr>
+            <tr><td>02 <span class="c">done</span></td><td><code>fix(i18n):</code> resolve the locale from root params instead of the request</td></tr>
+            <tr><td>03 <span class="c">done</span></td><td><code>perf(ui):</code> stream url-dependent client components behind suspense</td></tr>
+            <tr><td>03b</td><td><code>fix(ui):</code> wrap the home page locale switcher in suspense</td></tr>
+            <tr><td>04</td><td><code>perf(data):</code> cache request-independent queries with use cache</td></tr>
+            <tr><td>05</td><td><code>refactor(data):</code> move currency formatting out of the data layer</td></tr>
+            <tr><td>06</td><td><code>refactor(actions):</code> invalidate cached reads by tag instead of by path</td></tr>
+            <tr><td>07</td><td><code>perf(dashboard):</code> stream search results behind a suspense boundary</td></tr>
+            <tr><td>08</td><td><code>docs(ch18):</code> record the cache components build result</td></tr>
           </tbody>
         </table>
       </div>

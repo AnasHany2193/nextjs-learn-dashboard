@@ -665,7 +665,7 @@
             <tr><td>Flag on, nothing else</td><td>build dies before rendering</td></tr>
             <tr><td>After step 01</td><td>18</td></tr>
             <tr><td>After step 02</td><td><strong>16</strong>, login now prerenders in both locales</td></tr>
-            <tr><td>After step 03 (projected)</td><td>14, home clears, dashboard chrome clears</td></tr>
+            <tr><td>After step 03, sidebar wrapped</td><td><strong>12</strong>, dashboard chrome clears; home still open</td></tr>
           </tbody>
         </table>
       </div>
@@ -851,6 +851,7 @@ so an empty object skips that read.</pre>
         <span class="file">app/ui/locale-switcher.tsx</span>
         <span class="file">app/ui/dashboard/nav-links.tsx</span>
         <span class="file">app/ui/dashboard/sidenav.tsx</span>
+        <span class="file">app/ui/skeletons.tsx</span>
         <span class="file">app/[locale]/page.tsx</span>
       </div>
 
@@ -876,7 +877,7 @@ so an empty object skips that read.</pre>
       <p>One component, <code>LocaleSwitcher</code>, is on the critical path for every remaining failing route, because chapter 17's follow-up work put it in the sidebar and on both public pages. Wrapping it is the single highest-value edit in the chapter.</p>
 
       <div class="code">
-        <div class="code-head"><span class="path">app/ui/dashboard/sidenav.tsx</span><span class="tag edit">planned</span></div>
+        <div class="code-head"><span class="path">app/ui/dashboard/sidenav.tsx</span><span class="tag edit">edit</span></div>
         <pre><code>&lt;Suspense fallback={&lt;NavLinksSkeleton /&gt;}&gt;
   &lt;NavLinks /&gt;
 &lt;/Suspense&gt;
@@ -891,9 +892,45 @@ so an empty object skips that read.</pre>
         <p>Wrapping the largest component works and throws away most of the benefit, because everything inside a boundary leaves the shell. Wrap the smallest component that actually reads the URL. Here that means wrapping <code>NavLinks</code> and <code>LocaleSwitcher</code> individually rather than wrapping <code>SideNav</code> once, so the sidebar frame itself stays static.</p>
       </div>
 
+      <p>A named fallback needs a component, and every other skeleton in this app already lives in <code>app/ui/skeletons.tsx</code>, sized to match the real component so nothing jumps when the boundary resolves. These two hold to the same convention: plain gray blocks, no hooks, no shimmer, matching only the layout classes that determine size.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/ui/skeletons.tsx</span><span class="tag new">new</span></div>
+        <pre><code><span class="c">// Mirrors NavLinks' three link buttons: grow so they share the mobile
+// top bar evenly. md:flex-none matches the real Link's own class, but
+// width still comes from the parent's default align-items: stretch in
+// its md:flex-col layout, same as the real links, so no fixed width here.</span>
+export function NavLinksSkeleton() {
+  return (
+    &lt;&gt;
+      &lt;div className="h-[48px] grow rounded-md bg-gray-100 md:flex-none" /&gt;
+      &lt;div className="h-[48px] grow rounded-md bg-gray-100 md:flex-none" /&gt;
+      &lt;div className="h-[48px] grow rounded-md bg-gray-100 md:flex-none" /&gt;
+    &lt;/&gt;
+  );
+}
+
+<span class="c">// Mirrors LocaleSwitcher's own root: one h-7 pill per locale, sized to
+// the real buttons' text-sm + py-1, sharing the row with flex-1 the
+// same way.</span>
+export function LocaleSwitcherSkeleton() {
+  return (
+    &lt;div className="flex h-full gap-1 text-sm"&gt;
+      &lt;div className="h-7 flex-1 rounded-md bg-gray-100" /&gt;
+      &lt;div className="h-7 flex-1 rounded-md bg-gray-100" /&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+      </div>
+
+      <div class="note warn">
+        <span class="lbl">A first attempt got the width wrong</span>
+        <p>The first pass hardcoded <code>md:w-[176px]</code> on the nav-link placeholders, reasoning from <code>md:flex-none</code> alone. That class only governs the main-axis grow and shrink behaviour in the sidebar's column layout on desktop, height there, not width. Width comes from the parent's default <code>align-items: stretch</code>, which the real <code>Link</code> elements rely on too. A hardcoded width would have rendered a visibly narrower placeholder that then jumped wider once the real links streamed in. Caught by reading the actual flexbox rules the layout depends on, not by guessing from the className.</p>
+      </div>
+
       <div class="check">
-        <span class="lbl">Checkpoint</span>
-        <span>No <code>CLIENT_HOOK_DYNAMIC</code> digest anywhere in the build output. <code>/en</code> and <code>/ar</code> prerender. This is the first route-shaped checkpoint in the plan, and it closes stage 1.</span>
+        <span class="lbl">Checkpoint · partially met</span>
+        <span>No <code>CLIENT_HOOK_DYNAMIC</code> digest anywhere the sidebar renders. Verified against a real build: 16 failing paths dropped to <strong>12</strong>, and every dashboard path the sidebar alone was blocking is now clear, including <code>/en/dashboard</code> and <code>/en/dashboard/customers/create</code>. <code>/en</code> and <code>/ar</code> (home) are still open: <code>LocaleSwitcher</code> there is not yet wrapped, since it sits on the page directly rather than inside <code>SideNav</code>. That is the one edit left to close this step.</span>
       </div>
 
       <h4>Commit</h4>

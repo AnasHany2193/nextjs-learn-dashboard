@@ -1,9 +1,14 @@
+import { Suspense } from "react";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
 import NavLinks from "@/app/ui/dashboard/nav-links";
 import AcmeLogo from "@/app/ui/acme-logo";
 import LocaleSwitcher from "@/app/ui/locale-switcher";
+import {
+  NavLinksSkeleton,
+  LocaleSwitcherSkeleton,
+} from "@/app/ui/skeletons";
 import { PowerIcon } from "@heroicons/react/24/outline";
 import { signOut } from "../../../auth";
 
@@ -22,10 +27,15 @@ export default async function SideNav() {
         </div>
       </Link>
       <div className="flex grow flex-row justify-between gap-2 md:flex-col">
-        <NavLinks />
+        <Suspense fallback={<NavLinksSkeleton />}>
+          <NavLinks />
+        </Suspense>
+
         <div className="hidden h-auto w-full grow rounded-md bg-gray-50 md:block"></div>
         <div className="md:w-full">
-          <LocaleSwitcher />
+          <Suspense fallback={<LocaleSwitcherSkeleton />}>
+            <LocaleSwitcher />
+          </Suspense>
         </div>
         <form
           action={async () => {

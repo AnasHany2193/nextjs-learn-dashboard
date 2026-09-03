@@ -290,6 +290,31 @@ export function CustomersMobileSkeleton() {
   );
 }
 
+// Mirrors NavLinks' three link buttons: `grow` so they share the mobile
+// top bar evenly; `md:flex-none` matches the real Link's own class, but
+// width still comes from the parent's default `align-items: stretch` in
+// its md:flex-col layout, same as the real links, so no fixed width here.
+export function NavLinksSkeleton() {
+  return (
+    <>
+      <div className="h-[48px] grow rounded-md bg-gray-100 md:flex-none" />
+      <div className="h-[48px] grow rounded-md bg-gray-100 md:flex-none" />
+      <div className="h-[48px] grow rounded-md bg-gray-100 md:flex-none" />
+    </>
+  );
+}
+
+// Mirrors LocaleSwitcher's own root: one h-7 pill per locale, sized to the
+// real buttons' text-sm + py-1, sharing the row with flex-1 the same way.
+export function LocaleSwitcherSkeleton() {
+  return (
+    <div className="flex h-full gap-1 text-sm">
+      <div className="h-7 flex-1 rounded-md bg-gray-100" />
+      <div className="h-7 flex-1 rounded-md bg-gray-100" />
+    </div>
+  );
+}
+
 export function CustomersTableSkeleton() {
   const t = useTranslations("Customers");
 

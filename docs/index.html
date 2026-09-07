@@ -666,10 +666,10 @@
       <a class="card-link" href="./chapter-18-cache-components/">
         <div class="chapter-top">
           <span class="chapter-n">Chapter 18</span>
-          <span class="status planned">Plan</span>
+          <span class="status planned">In progress</span>
         </div>
         <h2>Cache Components and the static shell</h2>
-        <p>Eleven of eleven routes are server-rendered on demand, and the only static thing in the build output is the 404 page. Next 16 inverts the caching model: nothing is cached unless you say so, and the build refuses to pass until every uncached read is either cached or pushed behind a Suspense boundary. Rewritten mid-build after the first plan stalled on its own step 02, because prerender blockers turn out to be a stack rather than a list, and the build only ever names the first one.</p>
+        <p>Eleven of eleven routes are server-rendered on demand, and the only static thing in the build output is the 404 page. Next 16 inverts the caching model: nothing is cached unless you say so, and the build refuses to pass until every uncached read is either cached or pushed behind a Suspense boundary. Eight steps through <code>use cache</code>, <code>cacheLife</code>, cache keys, tag-based invalidation and streaming, plus the blocker taxonomy that turns a confusing build error into a lookup.</p>
       </a>
     </li>
   </ul>

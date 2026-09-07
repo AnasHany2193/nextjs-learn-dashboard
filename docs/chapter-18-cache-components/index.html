@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="/nextjs-learn-dashboard/favicon.svg" type="image/svg+xml">
-<meta name="description" content="Adopting Next.js 16 Cache Components on a bilingual, login-walled dashboard. Rewritten mid-build after the first plan stalled: why prerender blockers form a stack rather than a list, and why next/root-params removed an entire class of them.">
+<meta name="description" content="Adopting Next.js 16 Cache Components on a bilingual, login-walled dashboard, in eight steps: use cache, cacheLife, cacheTag, updateTag, Suspense boundaries, and why prerender blockers form a stack rather than a list.">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Cache Components and the static shell">
-<meta property="og:description" content="Turning eleven fully dynamic routes into prerendered static shells, and the plan rewrite that happened when the first step order turned out to be wrong.">
+<meta property="og:description" content="Turning eleven fully dynamic routes into prerendered static shells with Next 16 Cache Components.">
 <meta property="og:url" content="https://anashany2193.github.io/nextjs-learn-dashboard/chapter-18-cache-components/">
 <meta property="og:image" content="https://anashany2193.github.io/nextjs-learn-dashboard/opengraph-image.png">
 <meta property="og:image:width" content="1686">
@@ -19,7 +19,7 @@
   "@context": "https://schema.org",
   "@type": "TechArticle",
   "headline": "Cache Components and the static shell",
-  "description": "Turning eleven fully dynamic routes into prerendered static shells, and the plan rewrite that happened when the first step order turned out to be wrong.",
+  "description": "Turning eleven fully dynamic routes into prerendered static shells with Next 16 Cache Components.",
   "url": "https://anashany2193.github.io/nextjs-learn-dashboard/chapter-18-cache-components/",
   "author": { "@type": "Person", "name": "Anas Hany" },
   "isPartOf": {
@@ -504,12 +504,11 @@
 
   <nav class="rail" aria-label="Chapter contents">
     <a class="rail-back" href="../"><span class="arrow" aria-hidden="true">&larr;</span><span>All chapters</span></a>
-    <p class="rail-title">Chapter 18 · Plan v2</p>
+    <p class="rail-title">Chapter 18</p>
     <ol>
-      <li><a href="#rewrite"><span class="n">·</span><span>Why this was rewritten</span></a></li>
       <li><a href="#stack"><span class="n">·</span><span>Blockers are a stack</span></a></li>
       <li><a href="#taxonomy"><span class="n">·</span><span>Blocker taxonomy</span></a></li>
-      <li><a href="#status"><span class="n">·</span><span>Where we are now</span></a></li>
+      <li><a href="#status"><span class="n">·</span><span>What this chapter does</span></a></li>
       <li class="sep">Stage 1 · Unblock</li>
       <li><a href="#s1"><span class="n">01</span><span>Flag &amp; root params</span></a></li>
       <li><a href="#s2"><span class="n">02</span><span>next-intl via root params</span></a></li>
@@ -527,7 +526,6 @@
       <li><a href="#escape"><span class="n">·</span><span>The escape hatch</span></a></li>
       <li><a href="#risks"><span class="n">·</span><span>What could go wrong</span></a></li>
       <li><a href="#commits"><span class="n">·</span><span>Commit discipline</span></a></li>
-      <li><a href="#wrong"><span class="n">·</span><span>What v1 got wrong</span></a></li>
       <li><a href="#honest"><span class="n">·</span><span>What this isn't</span></a></li>
     </ol>
   </nav>
@@ -535,9 +533,9 @@
   <main>
     <div class="prose">
 
-      <p class="eyebrow">Self-directed · Chapter 18 · Plan, second draft</p>
+      <p class="eyebrow">Self-directed · Chapter 18</p>
       <h1>Cache Components and the static shell</h1>
-      <p class="standfirst">Every route in this app is server-rendered on demand. Eleven of eleven. Next 16's Cache Components model can turn most of that into a prerendered shell, with only the genuinely per-request parts streaming in behind it. This is the second draft of the plan, written after the first one stalled on its own step 02 for an entire session.</p>
+      <p class="standfirst">Every route in this app is server-rendered on demand. Eleven of eleven, and the only static thing in the build output is the 404 page. Next 16's Cache Components model can turn most of that into a prerendered shell, with only the genuinely per-request parts streaming in behind it. This chapter takes the dashboard through that migration in eight steps.</p>
 
       <div class="note">
         <span class="lbl">Before you start</span>
@@ -549,76 +547,34 @@ pnpm install
 pnpm build   <span class="c"># baseline: 11 of 11 routes dynamic, only the 404 is static</span></code></pre>
         </div>
         <p><strong>What you already know</strong> after Chapter 17: routes live under <code>app/[locale]/</code>, <code>i18n/routing.ts</code> is the single source of truth for locales and slugs, navigation is imported from <code>@/i18n/navigation</code>, and auth is enforced in <code>proxy.ts</code> rather than in a callback.</p>
-        <p><strong>What is new here:</strong> an inversion of everything the course taught about caching. Previously a route was static until something made it dynamic. Now <em>nothing</em> is cached unless you say so, and the build refuses to pass until every uncached read is either given a lifetime with <code>use cache</code> or pushed behind a <code>&lt;Suspense&gt;</code> boundary.</p>
-        <p><strong>Where this chapter stands:</strong> steps 01 to 03 are already implemented on <code>main</code>. Step 03 is one edit short of its checkpoint, and finishing it is your first task. Steps 04 to 08 are designed but not implemented.</p>
+        <p><strong>What is new here:</strong> an inversion of everything the course taught about caching. Previously a route was static until something made it dynamic, and one stray <code>cookies()</code> call anywhere in the tree quietly cost you the whole page. Now <em>nothing</em> is cached unless you say so, and the build refuses to pass until every uncached read is either given a lifetime with <code>use cache</code> or pushed behind a <code>&lt;Suspense&gt;</code> boundary. The compiler stops guessing and starts asking.</p>
+        <p><strong>You finish at:</strong> a build with no failing paths and a static shell on every route that can have one.</p>
       </div>
 
       <div class="note warn">
-        <span class="lbl">This chapter reads differently from 16 and 17</span>
-        <p>Those two are build records, written after the fact. This one is a working plan written partly ahead of the work, and it keeps its own mistakes visible rather than tidying them away: the first draft ordered its steps wrongly and stalled, and the retrospective explaining why is kept as a section. If you are reading for a clean recipe, that will feel untidy. It is deliberate, because the reason the first plan failed is the most transferable thing in the chapter.</p>
+        <span class="lbl">Expect to run the build constantly</span>
+        <p>This chapter is driven by build output more than any other. <code>pnpm build --debug-prerender</code> is the main feedback loop, and the errors it prints are the curriculum: each one names a file, a line, and a fix. Read them rather than pattern-matching against this page, because the order they appear in depends on your own code.</p>
       </div>
 
-      <div class="note warn">
-        <span class="lbl">This document was rewritten mid-build</span>
-        <p>The first draft was a reasonable-looking plan that turned out to be ordered wrong, and one of its code samples did not compile. Rather than quietly fix it, the mistake is kept and explained, because <em>why</em> it was wrong is the most transferable thing in this chapter. See <a href="#wrong">what v1 got wrong</a>.</p>
-      </div>
+      <h2 id="stack">How prerender blockers behave</h2>
 
-      <h2 id="rewrite">Why this was rewritten</h2>
-
-      <p>The first plan had eight steps, each with a checkpoint of the form <em>"route X builds without error"</em>. Step 02's checkpoint was <code>/en/login</code> and <code>/ar/login</code>, and it said, in bold, to stop and finish step 02 before touching anything else.</p>
-
-      <p>That instruction was followed. Step 02 then took four separate fixes, each revealed only after the previous one landed:</p>
-
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr><th>#</th><th>What the build said</th><th>What it actually needed</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>1</td>
-              <td><code>Cannot find name 'getFormats'</code></td>
-              <td>The plan's own probe snippet imported a function that is not a public export. It never compiled.</td>
-            </tr>
-            <tr>
-              <td>2</td>
-              <td>Blocking read at <code>i18n/request.ts</code>, <code>await requestLocale</code></td>
-              <td>Locale resolution falling through to <code>headers()</code>.</td>
-            </tr>
-            <tr>
-              <td>3</td>
-              <td>Unstable value <code>new Date()</code> at <code>getNow()</code></td>
-              <td>A cached build-time <code>now</code> in the request config.</td>
-            </tr>
-            <tr>
-              <td>4</td>
-              <td><code>useSearchParams()</code> outside <code>&lt;Suspense&gt;</code></td>
-              <td>A boundary around a component the plan had assigned to <strong>step 06</strong>.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <p>Item 4 is the one that broke the plan rather than merely delaying it. Step 02's checkpoint could not be reached without doing part of step 06. The steps were not independent, and the checkpoints assumed they were.</p>
-
-      <h2 id="stack">The idea the first plan was missing</h2>
+      <p>Before the first step, one property of this feature is worth understanding, because it determines the order everything else happens in.</p>
 
       <div class="note ok">
-        <span class="lbl">The transferable finding</span>
+        <span class="lbl">The idea to carry through the whole chapter</span>
         <p><strong>Prerender blockers are a stack, not a list.</strong> The build reports only the <em>first</em> blocker it hits on each route. Fix it and the next one appears, on the same route, with a completely different error message and often in a completely different file. A route goes green only when every blocker in its whole tree is gone.</p>
       </div>
 
-      <p>This has two consequences that should have shaped the first plan and did not.</p>
+      <p>Two consequences follow, and both shape how this chapter is organised.</p>
 
-      <p><strong>A route-shaped checkpoint is a late checkpoint.</strong> "Login builds clean" is not a step-02 outcome, it is the outcome of every step that touches anything login renders: the root layout, the i18n config, and every client component on the page. Putting it at step 02 guaranteed the step could not close.</p>
+      <p><strong>A route-shaped checkpoint is a late checkpoint.</strong> "The login page builds clean" is not the outcome of any single step. It is the outcome of every step that touches anything the login page renders: the root layout, the i18n configuration, and every client component on the page. Expecting one early step to close it would mean waiting on work that has not happened yet.</p>
 
-      <p><strong>Steps should be ordered by blast radius, not by subject matter.</strong> The root layout and the shared chrome are on every route, so anything blocking there blocks everything, and nothing else can be verified until they are clear. The first plan put client-hook boundaries at step 06 because they felt like a rendering concern rather than a config concern. In reality <code>LocaleSwitcher</code> and <code>NavLinks</code> render inside <code>SideNav</code>, which renders in the dashboard layout, which means those two components alone block all fourteen dashboard paths.</p>
+      <p><strong>Order steps by blast radius, not by subject matter.</strong> The root layout and the shared chrome render on every route, so anything blocking there blocks everything, and nothing else can be verified until it is clear. It is tempting to group work by topic, putting all the client-component changes together because they feel like one concern. Resist that. <code>LocaleSwitcher</code> and <code>NavLinks</code> render inside <code>SideNav</code>, which renders in the dashboard layout, so those two components alone block all fourteen dashboard paths. They are worth fixing before anything that touches a single route.</p>
 
-      <p>So this draft is organised in <strong>stages</strong>. Stage 1 clears everything with app-wide blast radius. Only at the end of stage 1 does the first route-shaped checkpoint appear.</p>
-
+      <p>So the chapter is organised in <strong>stages</strong>. Stage 1 clears everything with app-wide reach. Only at the end of stage 1 does the first route-shaped checkpoint appear, and from there each stage can be verified as it lands.</p>
       <h2 id="taxonomy">Blocker taxonomy</h2>
 
-      <p>Every prerender failure seen in this app so far, what causes it, and where it gets fixed. This table is the practical core of the chapter: with it, a new error is a lookup rather than an investigation.</p>
+      <p>Every prerender failure this migration produces, what causes it, and which step fixes it. This table is the practical core of the chapter: with it, an error you hit becomes a lookup rather than an investigation. Come back to it whenever the build names something you do not recognise.</p>
 
       <div class="table-wrap">
         <table>
@@ -690,37 +646,39 @@ pnpm build   <span class="c"># baseline: 11 of 11 routes dynamic, only the 404 i
         <p><strong>"encountered the unstable value <code>new Date()</code>"</strong> means synchronous IO. It has <em>no</em> streaming escape and <code>instant = false</code> does not clear it. It must be cached, moved to the client, or removed. Reading the two messages as the same category costs an afternoon.</p>
       </div>
 
-      <h2 id="status">Where we are now</h2>
+      <h2 id="status">What this chapter does</h2>
 
-      <p>Steps 01 and 02 are committed and verified. Step 03 is committed but <strong>one edit short of its checkpoint</strong>. Everything above the dividing line below is measured build output from this repo; everything below it is the projection the remaining steps are designed against.</p>
+      <p>The clearest way to see progress is the failing-path count from <code>pnpm build --debug-prerender</code>. Every route is built once per locale, so eleven routes produce more than eleven paths, and a single blocker in shared chrome shows up many times over.</p>
+
+      <p>Here is the shape of the journey. Use it to confirm you are on track after each step rather than as a target to optimise against:</p>
 
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>Milestone</th><th>Failing paths</th><th>Status</th></tr>
+            <tr><th>After</th><th>Failing paths</th><th>What just cleared</th></tr>
           </thead>
           <tbody>
-            <tr><td>Flag off (baseline)</td><td>n/a, 11 of 11 routes dynamic</td><td>measured</td></tr>
-            <tr><td>Flag on, nothing else</td><td>build dies before rendering</td><td>measured</td></tr>
-            <tr><td>After step 01</td><td>18</td><td>measured</td></tr>
-            <tr><td>After step 02</td><td><strong>16</strong>, login prerenders in both locales</td><td>measured</td></tr>
-            <tr><td>After step 03, sidebar only</td><td><strong>12</strong>, dashboard chrome clears</td><td>measured, current HEAD</td></tr>
-            <tr><td>After step 03 finished, home too</td><td><strong>10</strong>, all client-hook blockers gone</td><td>measured on a scratch branch</td></tr>
-            <tr><td>After step 04</td><td>4, create and edit routes clear</td><td>projected</td></tr>
-            <tr><td>After step 05</td><td>4, unchanged; this step buys cacheability, not routes</td><td>projected</td></tr>
-            <tr><td>After step 07</td><td><strong>0</strong>, build exits clean</td><td>projected</td></tr>
+            <tr><td>Starting point</td><td>n/a</td><td>11 of 11 routes dynamic, only the 404 is static</td></tr>
+            <tr><td>Enabling the flag alone</td><td>build dies early</td><td>nothing yet, it fails before rendering starts</td></tr>
+            <tr><td>Step 01</td><td>18</td><td>the build reaches the rendering stage</td></tr>
+            <tr><td>Step 02</td><td>16</td><td>the login page, in both locales</td></tr>
+            <tr><td>Step 03</td><td>10</td><td>the home page and the dashboard chrome</td></tr>
+            <tr><td>Step 04</td><td>4</td><td>the create and edit routes</td></tr>
+            <tr><td>Step 05</td><td>4</td><td>nothing; this step buys cacheability, not routes</td></tr>
+            <tr><td>Step 06</td><td>4</td><td>nothing; this step fixes correctness, not prerendering</td></tr>
+            <tr><td>Step 07</td><td>0</td><td>the two list pages, and the build exits clean</td></tr>
           </tbody>
         </table>
       </div>
 
-      <p>The 12 failing today break down as: the two home paths, blocked only by <code>LocaleSwitcher</code>; four list-page paths blocked by <code>searchParams</code>; and six create/edit paths blocked by uncached database reads. That grouping is what the remaining step order follows.</p>
+      <p>Those 18 paths at the start group into three kinds of blocker, and the step order follows that grouping directly: framework plumbing in the root layout, then client components in the shared chrome, then your own database reads and URL-dependent pages.</p>
 
-      <div class="note warn">
-        <span class="lbl">Step 03 is not finished, and the count above proves it</span>
-        <p>Commit <code>012b4f0</code> wrapped <code>NavLinks</code> and <code>LocaleSwitcher</code> inside <code>SideNav</code>, which cleared the dashboard chrome. It did not wrap the <em>third</em> mount point: <code>LocaleSwitcher</code> also renders directly on the home page, at <code>app/[locale]/page.tsx</code> line 18, outside any boundary. Finish that before starting step 04, using the instructions at the end of the step 03 section.</p>
+      <div class="note">
+        <span class="lbl">Two steps that clear no routes, and why they still matter</span>
+        <p>Steps 05 and 06 move the failing count by zero, which can read as wasted effort. They are not. Step 05 is what makes the dashboard's data <em>cacheable at all</em>, and step 06 fixes a correctness bug that step 04 introduces on purpose. A chapter that optimised only for the number in this table would skip both and ship a dashboard that serves stale data after every edit.</p>
       </div>
 
-      <h2 id="s1"><span class="step-n">Step 01 · done</span>Turn on the flag and enumerate the root param</h2>
+      <h2 id="s1"><span class="step-n">Step 01</span>Turn on the flag and enumerate the root param</h2>
 
       <div class="files">
         <span class="file">next.config.ts</span>
@@ -750,7 +708,7 @@ pnpm build   <span class="c"># baseline: 11 of 11 routes dynamic, only the 404 i
       </div>
 
       <div class="check">
-        <span class="lbl">Checkpoint · met</span>
+        <span class="lbl">Checkpoint</span>
         <span>The build reaches the rendering stage. 18 paths fail there, which is the real work starting.</span>
       </div>
 
@@ -766,7 +724,7 @@ Components needs a concrete param to prerender and to verify the resulting
 shell is non-empty.</pre>
       </div>
 
-      <h2 id="s2"><span class="step-n">Step 02 · done</span>Make next-intl prerenderable</h2>
+      <h2 id="s2"><span class="step-n">Step 02</span>Make next-intl prerenderable</h2>
 
       <div class="files">
         <span class="file">i18n/request.ts</span>
@@ -865,7 +823,7 @@ const timeZone = await getTimeZone();
       </div>
 
       <div class="check">
-        <span class="lbl">Checkpoint · met</span>
+        <span class="lbl">Checkpoint</span>
         <span>No <code>i18n/request.ts</code> frame appears anywhere in the build output, and <code>setRequestLocale</code> greps to zero hits. 18 paths drop to 16, with <code>/en/login</code> and <code>/ar/login</code> now prerendering.</span>
       </div>
 
@@ -893,7 +851,7 @@ export, only getFormatter is, and this app configures no custom formats,
 so an empty object skips that read.</pre>
       </div>
 
-      <h2 id="s3"><span class="step-n">Step 03 · one edit short</span>Client URL hooks behind Suspense</h2>
+      <h2 id="s3"><span class="step-n">Step 03</span>Client URL hooks behind Suspense</h2>
 
       <div class="files">
         <span class="file">app/ui/locale-switcher.tsx</span>
@@ -903,7 +861,7 @@ so an empty object skips that read.</pre>
         <span class="file">app/[locale]/page.tsx</span>
       </div>
 
-      <p>This was step 06 in the first draft. It is step 03 here because it has the widest blast radius left in the app.</p>
+      <p>This step has the widest blast radius left in the app, which is why it comes before any data-layer work.</p>
 
       <p>Five client components read URL state. What matters is not that they exist but <em>where they render</em>:</p>
 
@@ -970,24 +928,14 @@ export function LocaleSwitcherSkeleton() {
   );
 }</code></pre>
       </div>
-
       <div class="note warn">
-        <span class="lbl">A first attempt got the width wrong</span>
-        <p>The first pass hardcoded <code>md:w-[176px]</code> on the nav-link placeholders, reasoning from <code>md:flex-none</code> alone. That class only governs the main-axis grow and shrink behaviour in the sidebar's column layout on desktop, height there, not width. Width comes from the parent's default <code>align-items: stretch</code>, which the real <code>Link</code> elements rely on too. A hardcoded width would have rendered a visibly narrower placeholder that then jumped wider once the real links streamed in. Caught by reading the actual flexbox rules the layout depends on, not by guessing from the className.</p>
+        <span class="lbl">Getting the placeholder width right</span>
+        <p>A natural first instinct is to hardcode a width on the nav-link placeholders, reasoning from <code>md:flex-none</code>. Do not. That class only governs main-axis grow and shrink in the sidebar's column layout, which is <em>height</em> there, not width. Width comes from the parent's default <code>align-items: stretch</code>, which the real <code>Link</code> elements rely on too. A hardcoded width renders a visibly narrower placeholder that jumps wider once the real links stream in, which is exactly the flash a skeleton exists to prevent.</p>
       </div>
 
-      <div class="check">
-        <span class="lbl">Checkpoint · partially met</span>
-        <span>No <code>CLIENT_HOOK_DYNAMIC</code> digest anywhere the sidebar renders. Verified against a real build: 16 failing paths dropped to <strong>12</strong>, and every dashboard path the sidebar alone was blocking is now clear, including <code>/en/dashboard</code> and <code>/en/dashboard/customers/create</code>. <code>/en</code> and <code>/ar</code> (home) are still open: <code>LocaleSwitcher</code> there is not yet wrapped, since it sits on the page directly rather than inside <code>SideNav</code>. That is the one edit left to close this step.</span>
-      </div>
+      <h3>The third mount point</h3>
 
-      <h3>Finishing step 03</h3>
-
-      <p>Do this before starting step 04. It is the same fix as the sidebar, applied to the mount point the commit missed.</p>
-
-      <p><strong>Where:</strong> <code>app/[locale]/page.tsx</code> (the home page) and <code>app/ui/skeletons.tsx</code>.</p>
-
-      <p><strong>Current state.</strong> The home page renders the switcher bare, at line 18:</p>
+      <p><code>SideNav</code> covers the dashboard, but <code>LocaleSwitcher</code> renders in one more place: directly on the home page, at <code>app/[locale]/page.tsx</code>, outside any boundary. It is easy to miss because it is the only mount point not inside shared chrome, and missing it leaves <code>/en</code> and <code>/ar</code> failing for a reason that looks identical to the one you just fixed.</p>
 
       <div class="code">
         <div class="code-head"><span class="path">app/[locale]/page.tsx · as it exists now</span><span class="tag">current</span></div>
@@ -996,7 +944,7 @@ export function LocaleSwitcherSkeleton() {
 &lt;/div&gt;</code></pre>
       </div>
 
-      <p><strong>What to change.</strong> Import <code>Suspense</code> from <code>react</code> and <code>LocaleSwitcherSkeleton</code> from <code>@/app/ui/skeletons</code>, then wrap it exactly as <code>SideNav</code> does:</p>
+      <p>Import <code>Suspense</code> from <code>react</code> and <code>LocaleSwitcherSkeleton</code> from <code>@/app/ui/skeletons</code>, then wrap it exactly as <code>SideNav</code> does:</p>
 
       <div class="code">
         <div class="code-head"><span class="path">app/[locale]/page.tsx</span><span class="tag edit">edit</span></div>
@@ -1008,8 +956,8 @@ export function LocaleSwitcherSkeleton() {
       </div>
 
       <div class="note warn">
-        <span class="lbl">The skeleton needs one fix to survive this second mount point</span>
-        <p><code>LocaleSwitcherSkeleton</code> was written for the sidebar, where its parent is <code>md:w-full</code> and supplies a width. Its two placeholder pills are <code>flex-1</code> with no content, so in the home page's <code>flex justify-end</code> container, which imposes no width, they resolve to zero and the fallback renders invisible. Add a floor to the skeleton root in <code>app/ui/skeletons.tsx</code>:</p>
+        <span class="lbl">One skeleton fix the second mount point forces</span>
+        <p>If you write <code>LocaleSwitcherSkeleton</code> for the sidebar first, it will look correct there and render invisible on the home page. In the sidebar its parent is <code>md:w-full</code> and supplies a width. Its two placeholder pills are <code>flex-1</code> with no content, so in the home page's <code>flex justify-end</code> container, which imposes no width, they resolve to zero. Give the skeleton root a floor:</p>
         <div class="code">
           <div class="code-head"><span class="path">app/ui/skeletons.tsx</span><span class="tag edit">edit</span></div>
           <pre><code>export function LocaleSwitcherSkeleton() {
@@ -1021,26 +969,16 @@ export function LocaleSwitcherSkeleton() {
   );
 }</code></pre>
         </div>
-        <p>78px is the measured width of the real switcher when it sizes to its content: two buttons at <code>px-2</code> around two-character labels at <code>text-sm</code>, plus a <code>gap-1</code>. In the sidebar the parent is wider, so the floor never binds and nothing changes there.</p>
+        <p>78px is the width of the real switcher when it sizes to its content: two buttons at <code>px-2</code> around two-character labels at <code>text-sm</code>, plus a <code>gap-1</code>. In the sidebar the parent is wider, so the floor never binds and nothing changes there. This is a good habit generally: a skeleton is only correct relative to a parent, so a component with two mount points needs checking in both.</p>
       </div>
 
       <div class="check">
-        <span class="lbl">Checkpoint · closes step 03</span>
-        <span><code>pnpm build --debug-prerender</code> reports <strong>10</strong> failing paths, down from 12, and <code>/en</code> and <code>/ar</code> are no longer among them. Grep the output for <code>CLIENT_HOOK_DYNAMIC</code>: there should be no hits anywhere. Every remaining failure is now an uncached data read, which is what step 04 is for.</span>
+        <span class="lbl">Checkpoint</span>
+        <span><code>pnpm build --debug-prerender</code> reports <strong>10</strong> failing paths, down from 16, and neither <code>/en</code> nor <code>/ar</code> is among them. Grep the output for <code>CLIENT_HOOK_DYNAMIC</code>: there should be no hits anywhere. Every remaining failure is now an uncached data read, which is what step 04 is for. Load <code>/en</code> and <code>/ar</code> in the browser and confirm the switcher still works and does not flash a zero-width placeholder on the way in.</span>
       </div>
 
-      <h4>Commit</h4>
-      <div class="commit">
-        <pre>fix(ui): wrap the home page locale switcher in suspense
-
-The previous commit wrapped both readers inside SideNav but missed the third
-mount point: LocaleSwitcher also renders directly on the home page, so /en
-and /ar still could not prerender.
-
-Give the skeleton a min-width as well. Its pills are flex-1 with no content,
-which collapses to nothing in the home page's justify-end container; the
-sidebar's md:w-full parent had been hiding that.</pre>
-      </div>
+      <h3>Learning takeaway</h3>
+      <p>Client components that read the URL can never be part of a static shell, so the question is never <em>whether</em> to wrap them but how small the boundary can be. Wrapping a large component is easy and throws away most of the benefit, because everything inside a boundary leaves the shell. Wrapping the smallest reader keeps the frame around it static, and finding every mount point matters more than the wrapping itself.</p>
 
       <h4>Commit</h4>
       <div class="commit">
@@ -1048,12 +986,16 @@ sidebar's md:w-full parent had been hiding that.</pre>
 
 useSearchParams and usePathname resolve only at request time, so a component
 calling either cannot be part of a static shell. LocaleSwitcher and NavLinks
-both render inside SideNav, and LocaleSwitcher also renders on both public
-pages, so between them they blocked every route still failing.
+both render inside SideNav, and LocaleSwitcher also renders on the home page,
+so between them they blocked every route still failing.
 
 Wrap each reader individually rather than wrapping SideNav once, so the
-sidebar frame stays in the shell and only the two dynamic pieces stream.</pre>
+sidebar frame stays in the shell and only the dynamic pieces stream. The
+skeleton gets a min-width because its flex-1 pills collapse to nothing in the
+home page's justify-end container, which the sidebar's md:w-full parent had
+been hiding.</pre>
       </div>
+
 
       <h2 id="s4"><span class="step-n">Step 04</span>Cache a read with <code>use cache</code></h2>
 
@@ -1689,7 +1631,7 @@ clears the last routes that could not produce a static shell.</pre>
       <div class="commit">
         <pre>docs(ch18): record the cache components build result
 
-Replace the projected route counts with the real before and after tables,
+Record the real before and after route tables,
 the number of routes that ended up with a non-empty static shell, and any
 route still opted out of validation along with the reason.</pre>
       </div>
@@ -1797,10 +1739,9 @@ route still opted out of validation along with the reason.</pre>
             <tr><th>Step</th><th>Commit</th></tr>
           </thead>
           <tbody>
-            <tr><td>01 <span class="c">done</span></td><td><code>build(cache):</code> enable cache components and enumerate locale root params</td></tr>
-            <tr><td>02 <span class="c">done</span></td><td><code>fix(i18n):</code> resolve the locale from root params instead of the request</td></tr>
-            <tr><td>03 <span class="c">done</span></td><td><code>perf(ui):</code> stream url-dependent client components behind suspense</td></tr>
-            <tr><td>03b</td><td><code>fix(ui):</code> wrap the home page locale switcher in suspense</td></tr>
+            <tr><td>01</td><td><code>build(cache):</code> enable cache components and enumerate locale root params</td></tr>
+            <tr><td>02</td><td><code>fix(i18n):</code> resolve the locale from root params instead of the request</td></tr>
+            <tr><td>03</td><td><code>perf(ui):</code> stream url-dependent client components behind suspense</td></tr>
             <tr><td>04</td><td><code>perf(data):</code> cache request-independent queries with use cache</td></tr>
             <tr><td>05</td><td><code>refactor(data):</code> move currency formatting out of the data layer</td></tr>
             <tr><td>06</td><td><code>refactor(actions):</code> invalidate cached reads by tag instead of by path</td></tr>
@@ -1808,22 +1749,6 @@ route still opted out of validation along with the reason.</pre>
             <tr><td>08</td><td><code>docs(ch18):</code> record the cache components build result</td></tr>
           </tbody>
         </table>
-      </div>
-
-      <h2 id="wrong">What the first draft got wrong</h2>
-
-      <div class="verdict">
-        <h3>Four mistakes, one of them structural</h3>
-
-        <p><strong>It shipped code that did not compile.</strong> Step 02's probe imported <code>getFormats</code> from <code>next-intl/server</code>. That function exists in the package, but only as an internal module: the public barrel exports <code>getFormatter</code>, not <code>getFormats</code>. The plan was written from reading next-intl's source without checking what the entrypoint actually re-exports. One <code>node -e "Object.keys(require('next-intl/server'))"</code> would have caught it.</p>
-
-        <p><strong>It recommended the deprecated API.</strong> The whole step 02 bisection was built around making <code>setRequestLocale</code> work under prerendering, and its worst-case branch was "spread it to every page". The installed package marks both it and <code>requestLocale</code> deprecated, pointing at <code>next/root-params</code>, which is a one-file change that removes the problem instead of distributing it. The deprecation notice was visible in the editor the whole time and got read as noise.</p>
-
-        <p><strong>It assumed the first error was the only error.</strong> Step 02 was scoped to two files. Clearing it actually took four fixes across three concerns, because the build only ever names the first blocker per route. A step scoped by file list is a guess; a step scoped by <em>error class</em> is checkable.</p>
-
-        <p><strong>And the structural one: it ordered steps by subject, not by blast radius.</strong> Client-hook boundaries were step 06 because they read like a rendering topic. But <code>LocaleSwitcher</code> renders in the sidebar and on both public pages, so it alone blocked all sixteen remaining paths. A step-02 checkpoint that depended on step 06 could never pass. Ordering by how many routes a fix unblocks, rather than by which part of the app it belongs to, is the correction this draft is built on.</p>
-
-        <p>The through-line is the same one chapter 17 ended on, in a new costume: <strong>the plan was written by reading, and reality was found by running.</strong> Chapter 17 learned that about auth bypasses. This chapter learned it about the plan itself.</p>
       </div>
 
       <h2 id="honest">What this chapter isn't</h2>

@@ -308,7 +308,7 @@ export function NavLinksSkeleton() {
 // real buttons' text-sm + py-1, sharing the row with flex-1 the same way.
 export function LocaleSwitcherSkeleton() {
   return (
-    <div className="flex h-full gap-1 text-sm">
+    <div className="flex h-full min-w-[78px] gap-1 text-sm">
       <div className="h-7 flex-1 rounded-md bg-gray-100" />
       <div className="h-7 flex-1 rounded-md bg-gray-100" />
     </div>

@@ -1335,6 +1335,7 @@ open in chapter 17, and is worth keeping even without Cache Components.</pre>
       <div class="files">
         <span class="file">app/lib/data.ts</span>
         <span class="file">app/lib/actions.ts</span>
+        <span class="file">i18n/request.ts</span>
       </div>
 
       <h3>Current state</h3>
@@ -1446,6 +1447,127 @@ export async function fetchInvoiceById(id: string) {
         <p>Neither cache keys nor tag names are hashed. A cached function's arguments are serialized straight into its key, and <code>cacheTag</code> values are stored as written. Tag on stable identifiers only. Never put an email address, a token, or anything personal in a tag or in a cached function's arguments.</p>
       </div>
 
+      <h3>The checkpoint will 500 before you reach it</h3>
+
+      <p>Try the checkpoint below now, before reading on. Editing an invoice returns a 500 and the browser console shows this:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">console, on submitting the edit form</span><span class="tag">error</span></div>
+        <pre><code>POST /en/dashboard/invoices/cba301db-.../edit  500 (Internal Server Error)
+
+Error: `import('next/root-params').locale()` was used inside a Server Action.
+This is not supported. Functions from 'next/root-params' can only be called
+in the context of a route.
+    at &lt;anonymous&gt; (request.ts:22:37)
+    at updateInvoice (actions.ts:133:66)</code></pre>
+      </div>
+
+      <p>Nothing you did in this step caused it. Two earlier decisions collided, and this checkpoint is simply the first thing in the chapter that exercises a Server Action:</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Where</th><th>What it does</th><th>Landed in</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>app/lib/actions.ts</code></td><td><code>redirect({ href, locale: await getLocale() })</code>, so the redirect lands in the right locale</td><td>chapter 17</td></tr>
+            <tr><td><code>i18n/request.ts</code></td><td><code>await rootLocale()</code>, so resolving the locale costs nothing at prerender</td><td>step 02</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p><code>getLocale()</code> does not read the locale itself. It runs your <code>getRequestConfig</code> callback, which calls <code>rootLocale()</code>, which throws. That is why the stack trace blames <code>request.ts:22</code> from inside <code>actions.ts:133</code>.</p>
+
+      <div class="note warn">
+        <span class="lbl">This is permanent, not a gap waiting to be filled</span>
+        <p>The <a href="https://nextjs.org/docs/app/api-reference/functions/root-params">root-params reference</a> lists Server Actions under restrictions, and calls Route Handlers the one exception that is planned for a future release. Server Actions are not on that list. The reason is in Next's own source, at <code>next/dist/server/request/root-params.js</code>:</p>
+        <div class="code">
+          <div class="code-head"><span class="path">next/dist/server/request/root-params.js</span><span class="tag">reference</span></div>
+          <pre><code>if (actionStore.isAction &amp;&amp; workUnitStore.phase === 'action') {
+  <span class="c">// Actions are not fundamentally tied to a route (even if they're always</span>
+  <span class="c">// submitted from some page), so root params would be inconsistent if an</span>
+  <span class="c">// action is called from multiple roots.</span>
+  throw new Error(...)
+}</code></pre>
+        </div>
+        <p>A route has exactly one locale segment. An action is a function that any root can submit to, so there is no single correct answer and Next refuses to invent one. Two details in that guard are worth reading: it throws a plain <code>Error</code> with no <code>digest</code>, so catching it does not swallow framework control flow the way catching a <code>redirect()</code> would; and it only fires while <code>phase === 'action'</code>, so the re-render that follows the action is unaffected.</p>
+      </div>
+
+      <h3>The fix, and why it goes in the config rather than in the actions</h3>
+
+      <p>The locale is still knowable during an action, just not from the route. next-intl's proxy sets a locale header on every request it matches, and <code>headers()</code> is legal inside an action. So keep root params as the fast path and fall back to the header only when root params are unavailable.</p>
+
+      <p>The fallback value arrives as <code>requestLocale</code>, a parameter <code>getRequestConfig</code> already passes you.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">i18n/request.ts</span><span class="tag edit">edit</span></div>
+        <pre><code><span class="add">/**
+ * Root params are how this app stays prerenderable: they are known at
+ * build time, so reading the locale costs nothing.
+ *
+ * They are not available in a Server Action, and that is permanent. An
+ * action is not tied to a route, so there is no single correct value to
+ * hand back and Next throws rather than guess.
+ *
+ * Fall back to the locale header next-intl's proxy sets on every matched
+ * request. It costs a headers() call, but only in the action phase, which
+ * is dynamic already. Rendering never reaches this branch, so the
+ * prerender work from step 02 stays intact.
+ */
+async function resolveLocale(fromHeader: Promise&lt;string | undefined&gt;) {
+  try {
+    return await rootLocale();
+  } catch {
+    return await fromHeader;
+  }
+}</span>
+
+<span class="del">- export default getRequestConfig(async () =&gt; {</span>
+<span class="del">-   const requested = await rootLocale();</span>
+<span class="add">+ export default getRequestConfig(async ({ locale: override, requestLocale }) =&gt; {</span>
+<span class="add">+   const requested = override ?? (await resolveLocale(requestLocale));</span>
+  const locale = hasLocale(routing.locales, requested)
+    ? requested
+    : routing.defaultLocale;
+
+  return {
+    locale,
+    messages: await loadMessages(locale),
+    now: await getBuildTime(),
+  };
+});</code></pre>
+      </div>
+
+      <p>The <code>override</code> half is separate and free. When you call <code>getTranslations({ locale: "ar" })</code> with an explicit locale, next-intl passes it to your callback as <code>locale</code>. Honouring it first means an explicit locale short-circuits before <code>rootLocale()</code> is ever reached, so that form works in an action too.</p>
+
+      <div class="note">
+        <span class="lbl">Your editor will strike through <code>requestLocale</code></span>
+        <p><code>requestLocale</code> carries a <code>@deprecated</code> tag pointing at <code>next/root-params</code>, so you get a TypeScript hint, not an error. That is the right advice for the general case, and step 02 took it. It does not cover the action case, because root params cannot. Using the deprecated parameter purely as a fallback keeps every prerender path on root params and touches the header only where root params are impossible.</p>
+      </div>
+
+      <p>Fixing the one config file fixes six call sites, not just the one in the stack trace. Every next-intl server API routes through <code>getRequestConfig</code>, so all of these were broken the same way:</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Action</th><th>Call</th><th>What was broken</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>createInvoice</code>, <code>updateInvoice</code></td><td><code>getLocale()</code></td><td>500 on submit</td></tr>
+            <tr><td><code>createCustomer</code>, <code>updateCustomer</code></td><td><code>getLocale()</code></td><td>500 on submit</td></tr>
+            <tr><td><code>authenticate</code></td><td><code>getTranslations("Login")</code></td><td>500 instead of an invalid-credentials message</td></tr>
+            <tr><td><code>deleteCustomer</code></td><td><code>getTranslations("Customers")</code></td><td>500 instead of the refusal message when the customer still has invoices</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>The last two are worth trying deliberately, since both live on error paths you would not hit by accident: log in with a wrong password, and delete a customer that still has invoices.</p>
+
+      <div class="note">
+        <span class="lbl">The other way to fix this, and why it is not the one here</span>
+        <p>You could instead stop asking for route context inside actions at all: read the locale in the Server Component that renders each form and bind it in, <code>updateInvoice.bind(null, id, locale)</code>. That is closer to what Next's comment argues, since it makes the action's dependency explicit rather than recovered from a header. The cost is that it spreads across four actions and every form and button that calls them, and it still needs an answer for <code>getTranslations</code> on the two error paths. One config file that keeps the prerender fast path intact is the better trade here. Knowing both matters more than the choice: if you ever drop the proxy, the header disappears and binding becomes the only option left.</p>
+      </div>
+
       <h3>Checkpoint</h3>
       <div class="check">
         <span class="lbl">Checkpoint</span>
@@ -1455,7 +1577,8 @@ export async function fetchInvoiceById(id: string) {
       <h3>Learning takeaway</h3>
       <p>Caching a read is only half a feature; the other half is deciding how it becomes wrong and who is responsible for noticing. Tags let you describe invalidation in terms of the data that changed rather than the URLs that happen to display it, which is both more precise and more durable when routes get renamed.</p>
 
-      <h4>Commit</h4>
+      <h4>Commits</h4>
+      <p>Two logical changes here, so two commits. The tag refactor is the step; the config fix is a bug that the step happens to surface.</p>
       <div class="commit">
         <pre>refactor(actions): invalidate cached reads by tag instead of by path
 
@@ -1470,6 +1593,24 @@ updateTag rather than revalidateTag because every mutation here is followed
 by a redirect to look at the result: read-your-own-writes needs the next
 request to wait for fresh data, where revalidateTag would serve the stale
 value back to the user who just changed it.</pre>
+      </div>
+      <div class="commit">
+        <pre>fix(i18n): resolve the locale from the header inside server actions
+
+next/root-params throws in a Server Action, by design: an action is not
+tied to a route, so there is no single correct locale to return. Every
+next-intl server API runs getRequestConfig, so a bare rootLocale() call
+there made getLocale() and getTranslations() throw in all six actions
+that use them, including the invalid-credentials and delete-refusal
+paths that only run on error.
+
+Keep root params as the fast path, since they are what makes the locale
+free at prerender, and fall back to the locale header the proxy sets when
+they are unavailable. Only the action phase reaches the fallback, so no
+render path gains a headers() call.
+
+Also honour an explicit locale passed to getTranslations({locale}), which
+short-circuits before root params are read.</pre>
       </div>
 
       <h2 id="s7"><span class="step-n">Step 07</span>Streaming what genuinely cannot be cached</h2>

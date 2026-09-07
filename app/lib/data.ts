@@ -1,5 +1,7 @@
 import postgres from "postgres";
+import { cacheLife } from "next/cache";
 import { getLocale } from "next-intl/server";
+
 import {
   Customer,
   CustomerField,
@@ -16,6 +18,9 @@ if (!process.env.POSTGRES_URL)
 const sql = postgres(process.env.POSTGRES_URL!, { ssl: "require" });
 
 export async function fetchRevenue() {
+  "use cache";
+  cacheLife("max");
+
   try {
     // Artificially delay a response for demo purposes.
     // Don't do this in production :)
@@ -153,6 +158,9 @@ export async function fetchInvoicesPages(query: string) {
 }
 
 export async function fetchInvoiceById(id: string) {
+  "use cache";
+  cacheLife("minutes");
+
   try {
     const data = await sql<InvoiceForm[]>`
       SELECT
@@ -170,7 +178,6 @@ export async function fetchInvoiceById(id: string) {
       amount: invoice.amount / 100,
     }));
 
-    console.log(invoice);
     return invoice[0];
   } catch (error) {
     console.error("Database Error:", error);
@@ -179,6 +186,9 @@ export async function fetchInvoiceById(id: string) {
 }
 
 export async function fetchCustomers() {
+  "use cache";
+  cacheLife("hours");
+
   try {
     const customers = await sql<CustomerField[]>`
       SELECT
@@ -249,6 +259,9 @@ export async function fetchCustomersPages(query: string) {
 }
 
 export async function fetchCustomerById(id: string) {
+  "use cache";
+  cacheLife("minutes");
+
   try {
     const data = await sql<Customer[]>`
       SELECT id, name, email, image_url

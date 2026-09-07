@@ -6,7 +6,7 @@ import { fetchInvoicesPages } from "@/app/lib/data";
 
 import Search from "@/app/ui/search";
 import { lusitana } from "@/app/ui/fonts";
-import { InvoicesTableSkeleton } from "@/app/ui/skeletons";
+import { InvoicesTableSkeleton, SearchSkeleton } from "@/app/ui/skeletons";
 
 import Table from "@/app/ui/invoices/table";
 import Pagination from "@/app/ui/pagination";
@@ -29,7 +29,9 @@ export default async function Page(props: {
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-2 md:mt-8">
-        <Search placeholder={t("search")} />
+        <Suspense fallback={<SearchSkeleton />}>
+          <Search placeholder={t("search")} />
+        </Suspense>
         <CreateInvoice />
       </div>
 

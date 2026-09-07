@@ -460,3 +460,14 @@ export function CustomersTableSkeleton() {
     </div>
   );
 }
+
+// Mirrors Search's own root: flex-1 so it still shares the header row with
+// CreateInvoice/CreateCustomer the same way, sized to the real input's
+// py-[9px] height. Search calls useSearchParams(), which can never resolve
+// at build time, so it needs a boundary of its own -- the same constraint
+// as await props.searchParams, wearing different clothes.
+export function SearchSkeleton() {
+  return (
+    <div className="h-10 w-full flex-1 shrink-0 rounded-md bg-gray-100" />
+  );
+}

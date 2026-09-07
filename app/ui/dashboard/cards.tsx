@@ -4,9 +4,10 @@ import {
   UserGroupIcon,
   InboxIcon,
 } from "@heroicons/react/24/outline";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { lusitana } from "@/app/ui/fonts";
 import { fetchCardData } from "../../lib/data";
+import { formatCurrency } from "../../lib/utils";
 
 const iconMap = {
   collected: BanknotesIcon,
@@ -17,6 +18,8 @@ const iconMap = {
 
 export default async function CardWrapper() {
   const t = await getTranslations("Dashboard");
+  const locale = await getLocale();
+
   const {
     numberOfInvoices,
     numberOfCustomers,
@@ -28,7 +31,7 @@ export default async function CardWrapper() {
     <>
       <Card
         title={t("cardCollected")}
-        value={totalPaidInvoices}
+        value={formatCurrency(totalPaidInvoices, locale)}
         type="collected"
       />
       <Card

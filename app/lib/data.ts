@@ -1,6 +1,5 @@
 import postgres from "postgres";
 import { cacheLife } from "next/cache";
-import { getLocale } from "next-intl/server";
 
 import {
   Customer,
@@ -11,7 +10,6 @@ import {
   LatestInvoiceRaw,
   Revenue,
 } from "./definitions";
-import { formatCurrency } from "./utils";
 
 if (!process.env.POSTGRES_URL)
   throw new Error("Missing POSTGRES_URL environment variable");
@@ -40,8 +38,10 @@ export async function fetchRevenue() {
 }
 
 export async function fetchLatestInvoices() {
+  "use cache";
+  cacheLife("minutes");
+
   try {
-    const locale = await getLocale();
     const data = await sql<LatestInvoiceRaw[]>`
       SELECT invoices.amount, customers.name, customers.image_url, customers.email, invoices.id
       FROM invoices
@@ -49,11 +49,7 @@ export async function fetchLatestInvoices() {
       ORDER BY invoices.date DESC
       LIMIT 5`;
 
-    const latestInvoices = data.map((invoice) => ({
-      ...invoice,
-      amount: formatCurrency(invoice.amount, locale),
-    }));
-    return latestInvoices;
+    return data;
   } catch (error) {
     console.error("Database Error:", error);
     throw new Error("Failed to fetch the latest invoices.");
@@ -61,9 +57,10 @@ export async function fetchLatestInvoices() {
 }
 
 export async function fetchCardData() {
-  try {
-    const locale = await getLocale();
+  "use cache";
+  cacheLife("minutes");
 
+  try {
     // You can probably combine these into a single SQL query
     // However, we are intentionally splitting them to demonstrate
     // how to initialize multiple queries in parallel with JS.
@@ -82,11 +79,8 @@ export async function fetchCardData() {
 
     const numberOfInvoices = Number(data[0][0].count ?? "0");
     const numberOfCustomers = Number(data[1][0].count ?? "0");
-    const totalPaidInvoices = formatCurrency(data[2][0].paid ?? "0", locale);
-    const totalPendingInvoices = formatCurrency(
-      data[2][0].pending ?? "0",
-      locale,
-    );
+    const totalPaidInvoices = Number(data[2][0].paid ?? "0");
+    const totalPendingInvoices = Number(data[2][0].pending ?? "0");
 
     return {
       numberOfCustomers,
@@ -209,10 +203,10 @@ export async function fetchFilteredCustomers(
   query: string,
   currentPage: number,
 ) {
+  
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
   try {
-    const locale = await getLocale();
     const data = await sql<CustomersTableType[]>`
 		SELECT
 		  customers.id,
@@ -232,13 +226,7 @@ export async function fetchFilteredCustomers(
     LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
 	  `;
 
-    const customers = data.map((customer) => ({
-      ...customer,
-      total_pending: formatCurrency(customer.total_pending, locale),
-      total_paid: formatCurrency(customer.total_paid, locale),
-    }));
-
-    return customers;
+    return data;
   } catch (err) {
     console.error("Database Error:", err);
     throw new Error("Failed to fetch customer table.");

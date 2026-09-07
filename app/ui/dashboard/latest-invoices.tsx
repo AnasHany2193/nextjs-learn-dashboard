@@ -1,13 +1,15 @@
 import { ArrowPathIcon } from "@heroicons/react/24/outline";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import clsx from "clsx";
 import Image from "next/image";
 import { lusitana } from "@/app/ui/fonts";
-import { LatestInvoice } from "@/app/lib/definitions";
 import { fetchLatestInvoices } from "../../lib/data";
+import { formatCurrency } from "../../lib/utils";
 
 export default async function LatestInvoices() {
   const t = await getTranslations("Dashboard");
+  const locale = await getLocale();
+
   const latestInvoices = await fetchLatestInvoices();
 
   return (
@@ -48,7 +50,7 @@ export default async function LatestInvoices() {
                 <p
                   className={`${lusitana.className} truncate text-sm font-medium md:text-base`}
                 >
-                  {invoice.amount}
+                  {formatCurrency(invoice.amount, locale)}
                 </p>
               </div>
             );

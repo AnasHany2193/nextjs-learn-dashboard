@@ -1,8 +1,9 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { fetchFilteredCustomers } from "../../lib/data";
 import CustomerAvatar from "./avatar";
 import { DeleteCustomer, UpdateCustomer } from "./buttons";
+import { formatCurrency } from "../../lib/utils";
 
 export default async function CustomersTable({
   query,
@@ -12,7 +13,10 @@ export default async function CustomersTable({
   currentPage: number;
 }) {
   const customers = await fetchFilteredCustomers(query, currentPage);
+
   const t = await getTranslations("Customers");
+  const locale = await getLocale();
+
 
   return (
     <div className="mt-6 flow-root">
@@ -42,11 +46,15 @@ export default async function CustomersTable({
                   <div className="flex w-full items-center justify-between border-b py-5">
                     <div className="flex w-1/2 flex-col">
                       <p className="text-xs">{t("mobilePending")}</p>
-                      <p className="font-medium">{customer.total_pending}</p>
+                      <p className="font-medium">
+                        {formatCurrency(customer.total_pending, locale)}
+                      </p>
                     </div>
                     <div className="flex w-1/2 flex-col">
                       <p className="text-xs">{t("mobilePaid")}</p>
-                      <p className="font-medium">{customer.total_paid}</p>
+                      <p className="font-medium">
+                        {formatCurrency(customer.total_paid, locale)}
+                      </p>
                     </div>
                   </div>
                   <div className="flex w-full items-center justify-between p-4 pb-0">
@@ -106,10 +114,10 @@ export default async function CustomersTable({
                       {customer.total_invoices}
                     </td>
                     <td className="whitespace-nowrap px-4 py-5 text-sm">
-                      {customer.total_pending}
+                      {formatCurrency(customer.total_pending, locale)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-5 text-sm group-first-of-type:rounded-md group-last-of-type:rounded-md">
-                      {customer.total_paid}
+                      {formatCurrency(customer.total_paid, locale)}
                     </td>
                     <td className="whitespace-nowrap py-3 ps-6 pe-3">
                       <div className="flex items-start justify-end gap-3">

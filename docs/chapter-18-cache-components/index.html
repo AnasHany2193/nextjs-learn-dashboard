@@ -884,6 +884,12 @@ so an empty object skips that read.</pre>
 
       <p>One component, <code>LocaleSwitcher</code>, is on the critical path for every remaining failing route, because chapter 17's follow-up work put it in the sidebar and on both public pages. Wrapping it is the single highest-value edit in the chapter.</p>
 
+      <div class="note warn">
+        <span class="lbl">Search and pagination stay unwrapped here, and that is deliberate, not an oversight</span>
+        <p>Every route in the app fails right now, and <code>LocaleSwitcher</code> is the reason for all of them: it renders in the shared sidebar and on both public pages, so it sits <em>above</em> search and pagination in the stack on every route that has both. Once it and <code>NavLinks</code> are wrapped, the build's failing-path count drops to 10, and this chapter's step 04 treats every one of those 10 as an uncached data read.</p>
+        <p>That is true for eight of them. It is not true for the two list pages. <code>search</code> and <code>pagination</code>'s entries in the table above, four paths apiece, are still there underneath, just hidden the same way step 04 later demonstrates explicitly: the build only ever reports the first blocker per route, and until now <code>LocaleSwitcher</code> was always first. Wrapping it does not fix search and pagination, it just stops hiding whether they need fixing. Step 07 is where that surfaces and gets resolved, once the blockers above them are gone too. If you go looking for their wrapping here, you will not find it, and that is correct.</p>
+      </div>
+
       <div class="code">
         <div class="code-head"><span class="path">app/ui/dashboard/sidenav.tsx</span><span class="tag edit">edit</span></div>
         <pre><code>&lt;Suspense fallback={&lt;NavLinksSkeleton /&gt;}&gt;
@@ -1619,7 +1625,7 @@ short-circuits before root params are read.</pre>
       <p>Runtime APIs, and the "push the dynamic read down" pattern. The counterpart to <code>use cache</code>: what to do with data that either is legitimately different on every request, or is not known until the request names it.</p>
 
       <h3>Why now</h3>
-      <p>All ten remaining paths fail here, and no amount of caching will fix any of them. They fail in three different shapes, and the same pattern resolves all three, so they are one step rather than three.</p>
+      <p>All ten remaining paths fail here, and no amount of caching will fix any of them. They fail in four different shapes, and the same underlying pattern resolves all four, so they are one step rather than four.</p>
 
       <div class="table-wrap">
         <table>
@@ -1642,8 +1648,18 @@ short-circuits before root params are read.</pre>
               <td><code>/dashboard/invoices/create</code></td>
               <td>The read is cached, but awaiting it at the top of the component still holds the whole page, so nothing above it can prerender.</td>
             </tr>
+            <tr>
+              <td><code>useSearchParams()</code> in a Client Component</td>
+              <td>the two list pages, underneath the shape above</td>
+              <td>Not a data problem at all. The hook cannot resolve until the URL is known, so React itself refuses to run it outside a boundary, cached or not.</td>
+            </tr>
           </tbody>
         </table>
+      </div>
+
+      <div class="note warn">
+        <span class="lbl">The fourth shape only appears once the first one is fixed, which is why it is easy to miss</span>
+        <p>Fix the two list pages' <code>await props.searchParams</code> problem and <code>pnpm build</code> still fails on both of them, now with a different message: <code>useSearchParams() in a Client Component outside of &lt;Suspense&gt;</code>. This is <code>Search</code>, from step 03, rendered as a sibling of the boundary rather than inside it. Step 03's own table of client hooks listed <code>search</code> as blocking four paths, but that step only wrapped <code>LocaleSwitcher</code> and <code>NavLinks</code>, because those two sat higher in the stack on every route and made <code>search</code>'s blocker invisible until now. It was never fixed, only hidden. Confirm this against your own build rather than taking it on faith: fix the searchParams shape first, run the build again, and read what it reports next.</p>
       </div>
 
       <div class="note">
@@ -1658,6 +1674,7 @@ short-circuits before root params are read.</pre>
         <span class="file">app/[locale]/dashboard/invoices/[id]/edit/page.tsx</span>
         <span class="file">app/[locale]/dashboard/customers/[id]/edit/page.tsx</span>
         <span class="file">app/[locale]/dashboard/invoices/create/page.tsx</span>
+        <span class="file">app/ui/skeletons.tsx</span>
       </div>
 
       <h3>Current state</h3>
@@ -1692,7 +1709,7 @@ short-circuits before root params are read.</pre>
 
       <h3>What to change</h3>
 
-      <p>Stop awaiting the promise and start passing it. The page component becomes synchronous in its dynamic parts; a child inside a boundary does the awaiting.</p>
+      <p>Stop awaiting the promise and start passing it. The page component becomes synchronous in its dynamic parts; a child inside a boundary does the awaiting. <code>Search</code> gets its own small boundary in the same pass, for the fourth shape from the table above: it is a separate component with a separate blocker, so it needs its own wrapping rather than being pulled inside the results boundary.</p>
 
       <div class="code">
         <div class="code-head"><span class="path">app/[locale]/dashboard/invoices/page.tsx</span><span class="tag edit">edit</span></div>
@@ -1705,7 +1722,9 @@ short-circuits before root params are read.</pre>
   return (
     &lt;div className="w-full"&gt;
       &lt;h1&gt;{t("title")}&lt;/h1&gt;
-      &lt;Search placeholder={t("search")} /&gt;
+      <span class="add">&lt;Suspense fallback={&lt;SearchSkeleton /&gt;}&gt;
+        &lt;Search placeholder={t("search")} /&gt;
+      &lt;/Suspense&gt;</span>
 
       <span class="add">&lt;Suspense fallback={&lt;InvoicesTableSkeleton /&gt;}&gt;
         &lt;InvoicesResults searchParams={props.searchParams} /&gt;
@@ -1733,7 +1752,21 @@ short-circuits before root params are read.</pre>
 }</span></code></pre>
       </div>
 
-      <p>Move <code>Table</code> and <code>Pagination</code> together into the new child, since both need the resolved params. The old inner <code>Suspense key={query + currentPage}</code> wrapper around <code>Table</code> becomes redundant once the outer boundary is keyed by nothing but the request; you can drop it. Apply the identical transformation to the customers page, which uses <code>CustomersTable</code>, <code>fetchCustomersPages</code> and <code>CustomersTableSkeleton</code>.</p>
+      <p>Move <code>Table</code> and <code>Pagination</code> together into the new child, since both need the resolved params. The old inner <code>Suspense key={query + currentPage}</code> wrapper around <code>Table</code> becomes redundant once the outer boundary is keyed by nothing but the request; you can drop it. <code>Pagination</code> also calls <code>useSearchParams()</code>, but it moved inside the results boundary along with <code>Table</code>, so it needs no separate wrapping of its own; only a component left <em>outside</em> every boundary, which is where <code>Search</code> was, ever hits the fourth shape. Apply the identical transformation, results boundary and <code>Search</code> boundary both, to the customers page, which uses <code>CustomersTable</code>, <code>fetchCustomersPages</code> and <code>CustomersTableSkeleton</code>.</p>
+
+      <p><code>SearchSkeleton</code> is new. Unlike the table skeletons, <code>Search</code> has no meaningful loading state beyond its own box, so this one is a single block rather than a composed structure:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/ui/skeletons.tsx</span><span class="tag new">new</span></div>
+        <pre><code><span class="c">// Mirrors Search's own root: flex-1 so it still shares the header row with
+// CreateInvoice/CreateCustomer the same way, sized to the real input's
+// py-[9px] height.</span>
+export function SearchSkeleton() {
+  return (
+    &lt;div className="h-10 w-full flex-1 shrink-0 rounded-md bg-gray-100" /&gt;
+  );
+}</code></pre>
+      </div>
 
       <h3>The two edit pages, with <code>params</code></h3>
 
@@ -1786,10 +1819,80 @@ short-circuits before root params are read.</pre>
 
       <p>Apply the same transformation to <code>app/[locale]/dashboard/customers/[id]/edit/page.tsx</code>, which uses <code>fetchCustomerById</code> and the <code>Customers</code> namespace.</p>
 
-      <div class="note">
-        <span class="lbl">You will need a skeleton for each</span>
-        <p>There is no existing skeleton for the edit forms. Add one per form to <code>app/ui/skeletons.tsx</code>, following the convention already in that file: plain gray blocks sized to the real fields so the layout does not shift when the form streams in. Keeping the boundary's fallback close to the real shape matters more here than on a list, because a form that jumps as it loads is very noticeable.</p>
+      <p>There is no existing skeleton for either form. Add one per form to <code>app/ui/skeletons.tsx</code>, following the convention already in that file: plain gray blocks on the same <code>shimmer</code> overlay, sized to the real fields so the layout does not shift when the form streams in. Keeping the boundary's fallback close to the real shape matters more here than on a list, because a form that jumps as it loads is very noticeable.</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/ui/skeletons.tsx</span><span class="tag edit">edit</span></div>
+        <pre><code><span class="c">// Mirrors EditInvoiceForm: the customer select and amount field each get a
+// label-sized bar plus an input-height box, the status fieldset becomes two
+// pill-shaped blocks the same size as the real radio labels, and the footer
+// keeps the cancel/submit button widths.</span>
+<span class="add">export function EditInvoiceSkeleton() {
+  return (
+    &lt;div className={`${shimmer} relative overflow-hidden`}&gt;
+      &lt;div className="rounded-md bg-gray-50 p-4 md:p-6"&gt;
+        {/* Customer Name */}
+        &lt;div className="mb-4"&gt;
+          &lt;div className="mb-2 h-4 w-32 rounded-md bg-gray-100" /&gt;
+          &lt;div className="h-10 w-full rounded-md bg-gray-100" /&gt;
+        &lt;/div&gt;
+        {/* Invoice Amount */}
+        &lt;div className="mb-4"&gt;
+          &lt;div className="mb-2 h-4 w-24 rounded-md bg-gray-100" /&gt;
+          &lt;div className="h-10 w-full rounded-md bg-gray-100" /&gt;
+        &lt;/div&gt;
+        {/* Invoice Status */}
+        &lt;div className="mb-2 h-4 w-20 rounded-md bg-gray-100" /&gt;
+        &lt;div className="rounded-md border border-gray-200 bg-white px-[14px] py-3"&gt;
+          &lt;div className="flex gap-4"&gt;
+            &lt;div className="h-8 w-24 rounded-full bg-gray-100" /&gt;
+            &lt;div className="h-8 w-20 rounded-full bg-gray-100" /&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div className="mt-6 flex justify-end gap-4"&gt;
+        &lt;div className="h-10 w-24 rounded-lg bg-gray-100" /&gt;
+        &lt;div className="h-10 w-28 rounded-lg bg-gray-100" /&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}</span></code></pre>
       </div>
+
+      <p><code>EditCustomerForm</code> has three fields worth naming, but only two shapes. Name and email are both a label plus a full-width input. <code>AvatarPicker</code>'s closed state is a full-width, input-height bar too, a 24px circle and a chevron inside one bordered box, so it reuses the same block rather than needing its own:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/ui/skeletons.tsx</span><span class="tag edit">edit</span></div>
+        <pre><code><span class="add">export function EditCustomerSkeleton() {
+  return (
+    &lt;div className={`${shimmer} relative overflow-hidden`}&gt;
+      &lt;div className="rounded-md bg-gray-50 p-4 md:p-6"&gt;
+        {/* Customer Name */}
+        &lt;div className="mb-4"&gt;
+          &lt;div className="mb-2 h-4 w-24 rounded-md bg-gray-100" /&gt;
+          &lt;div className="h-10 w-full rounded-md bg-gray-100" /&gt;
+        &lt;/div&gt;
+        {/* Customer Email */}
+        &lt;div className="mb-4"&gt;
+          &lt;div className="mb-2 h-4 w-24 rounded-md bg-gray-100" /&gt;
+          &lt;div className="h-10 w-full rounded-md bg-gray-100" /&gt;
+        &lt;/div&gt;
+        {/* Customer Avatar */}
+        &lt;div className="mb-4"&gt;
+          &lt;div className="mb-2 h-4 w-20 rounded-md bg-gray-100" /&gt;
+          &lt;div className="h-10 w-full rounded-md bg-gray-100" /&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div className="mt-6 flex justify-end gap-4"&gt;
+        &lt;div className="h-10 w-24 rounded-lg bg-gray-100" /&gt;
+        &lt;div className="h-10 w-24 rounded-lg bg-gray-100" /&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}</span></code></pre>
+      </div>
+
+      <p>Both reuse the <code>shimmer</code> constant already declared at the top of the file, so no new import is needed. Wire <code>EditInvoiceSkeleton</code> into the invoice edit page's boundary as shown above, and <code>EditCustomerSkeleton</code> into the customer edit page's.</p>
 
       <h3>The create page, with a cached read</h3>
 
@@ -1818,20 +1921,48 @@ short-circuits before root params are read.</pre>
 
       <p>The breadcrumbs and the heading now prerender into the shell; only the form, which needs the customer list, streams. Note that <code>getTranslations</code> stays at the top level and does not block, because step 02 made the message config cacheable.</p>
 
+      <p><code>CreateInvoiceForm</code> renders the identical three fields as <code>EditInvoiceForm</code>, just without values filled in, which a skeleton never shows anyway. Rather than a second copy of the same gray blocks drifting out of sync the next time a field changes, factor the shape out once and export both names from it:</p>
+
+      <div class="code">
+        <div class="code-head"><span class="path">app/ui/skeletons.tsx</span><span class="tag edit">edit</span></div>
+        <pre><code><span class="add">function InvoiceFormSkeleton() {
+  return (
+    &lt;div className={`${shimmer} relative overflow-hidden`}&gt;
+      {/* ...the same gray blocks as EditInvoiceSkeleton, unchanged... */}
+    &lt;/div&gt;
+  );
+}
+
+export function EditInvoiceSkeleton() {
+  return &lt;InvoiceFormSkeleton /&gt;;
+}
+
+export function CreateInvoiceSkeleton() {
+  return &lt;InvoiceFormSkeleton /&gt;;
+}</span></code></pre>
+      </div>
+
+      <p>If you already wrote <code>EditInvoiceSkeleton</code> as its own function in step 07's earlier section, go back and extract it the same way now, so the two names share one body instead of two copies of the same markup.</p>
+
+      <div class="note warn">
+        <span class="lbl">The customer create page does not need one, and that is worth noticing rather than assuming</span>
+        <p><code>app/[locale]/dashboard/customers/create/page.tsx</code> only calls <code>getTranslations</code>, which step 02 made cacheable. It has no <code>fetchCustomers()</code>, no <code>params</code>, no <code>searchParams</code>: nothing that blocks. It was never in the failing-path count, so it never needed a <code>Suspense</code> boundary in this chapter and does not gain one here. Write <code>CreateCustomerSkeleton</code> for symmetry with the other three forms, using the same extraction as <code>CustomerFormSkeleton</code> from the previous section, but do not go looking for a blocker to attach it to on this page: there is not one. Confirm this yourself before taking it on faith, the same way you confirmed step 04's checkpoint: read the frames in your own build output, not this paragraph.</p>
+      </div>
+
       <div class="note">
         <span class="lbl">Push the read down, do not wrap the world</span>
-        <p>It is tempting to wrap the entire page body in one boundary and move on. That builds, and it throws away most of the benefit, because everything inside a boundary leaves the static shell. The useful version keeps the boundary as small as the set of components that genuinely need the URL. Here the heading and the search input stay outside it and ship in the shell.</p>
+        <p>It is tempting to wrap the entire page body in one boundary and move on. That builds, and it throws away most of the benefit, because everything inside a boundary leaves the static shell. The useful version keeps every boundary as small as the one component that genuinely needs the URL. On the create page, the heading and breadcrumbs stay outside and ship in the shell; the form streams. On the list pages, that means <code>Search</code> gets a boundary of its own rather than being folded into the results boundary or, worse, left outside every boundary the way it was: a component that reads the URL is never exempt just because it looks presentational.</p>
       </div>
 
       <h3>Why this change works</h3>
       <p>A promise is not a blocking read until something awaits it. Passing <code>props.searchParams</code> down as a prop hands the <em>obligation</em> to await into a subtree that Next.js is allowed to render later. The page above it has no request dependency left, so it prerenders; the child streams in when the request arrives and the URL is finally known.</p>
 
-      <p>The same rule governs the client hooks you dealt with in step 03. <code>useSearchParams</code> can never resolve at build time, which is why it always needs a boundary. Server-side <code>searchParams</code> and client-side <code>useSearchParams</code> are the same constraint wearing different clothes.</p>
+      <p>The same rule governs the client hooks you dealt with in step 03. <code>useSearchParams</code> can never resolve at build time, which is why it always needs a boundary. Server-side <code>searchParams</code> and client-side <code>useSearchParams</code> are the same constraint wearing different clothes, which is exactly why <code>Search</code> needed one here despite having no data of its own: the URL it reads is the same kind of unknown as the promise everything else in this step is passing down.</p>
 
       <h3>Checkpoint</h3>
       <div class="check">
         <span class="lbl">Checkpoint</span>
-        <span><code>pnpm build</code> reports <strong>no failing paths</strong> and exits 0 for the first time since step 01, taking the count from 10 to 0. In the route table, the five routes you touched should now show as partially prerendered rather than fully dynamic. Then run the app and confirm the behaviour still works in both locales: search and pagination on the two list pages including with an Arabic query string, both edit forms loading and saving, and the create form's customer dropdown populated.</span>
+        <span><code>pnpm build</code> reports <strong>no failing paths</strong> and exits 0 for the first time since step 01, taking the count from 10 to 0. Grep the output for <code>CLIENT_HOOK_DYNAMIC</code> the same way you did in step 03: there should be no hits, which is what confirms <code>Search</code>'s boundary actually caught the fourth shape and not just the searchParams one. In the route table, all five routes you touched should now show as partially prerendered rather than fully dynamic. Then run the app and confirm the behaviour still works in both locales: search and pagination on the two list pages including with an Arabic query string, both edit forms loading and saving, and the create form's customer dropdown populated.</span>
       </div>
 
       <h3>Learning takeaway</h3>
@@ -1839,14 +1970,23 @@ short-circuits before root params are read.</pre>
 
       <h4>Commit</h4>
       <div class="commit">
-        <pre>perf(dashboard): stream search results behind a suspense boundary
+        <pre>perf(dashboard): stream request-bound reads behind suspense boundaries
 
-Both list pages awaited searchParams at the top of the page component, so
-the heading and the search input waited on a value neither of them reads.
+Ten routes stopped prerendering for four different reasons: searchParams
+awaited at the top of the two list pages, params awaited at the top of the
+two edit pages, a cached read still awaited at the top of the create page,
+and Search's useSearchParams call rendered outside any boundary at all.
 
-Pass the promise into a child inside the boundary and await it there. The
-static half of each page now prerenders and only the results stream, which
-clears the last routes that could not produce a static shell.</pre>
+Push each read into a child inside its own <Suspense>, and give Search a
+boundary of its own alongside the results boundary rather than folding it
+into one or leaving it out of every one. The last shape only became visible
+once the searchParams fix cleared the blocker sitting above it, the same
+stack property step 04 introduced with fetchInvoiceById and fetchCustomerById.
+
+Add SearchSkeleton, CreateInvoiceSkeleton and CreateCustomerSkeleton to
+app/ui/skeletons.tsx, extracting shared field shapes for the invoice and
+customer forms so create and edit reuse one skeleton body rather than two
+copies of the same gray blocks. Clears the last ten failing paths.</pre>
       </div>
 
       <h2 id="s8"><span class="step-n">Step 08</span>Read the result</h2>

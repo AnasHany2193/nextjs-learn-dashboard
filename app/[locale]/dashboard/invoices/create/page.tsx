@@ -3,12 +3,11 @@ import { getTranslations } from "next-intl/server";
 import Form from "@/app/ui/invoices/create-form";
 import Breadcrumbs from "@/app/ui/breadcrumbs";
 import { fetchCustomers } from "@/app/lib/data";
+import { Suspense } from "react";
+import { CreateInvoiceSkeleton } from "@/app/ui/skeletons";
 
 export default async function Page() {
-  const [customers, t] = await Promise.all([
-    fetchCustomers(),
-    getTranslations("Invoices"),
-  ]);
+  const t = await getTranslations("Invoices");
 
   return (
     <main>
@@ -22,7 +21,15 @@ export default async function Page() {
           },
         ]}
       />
-      <Form customers={customers} />
+
+      <Suspense fallback={<CreateInvoiceSkeleton />}>
+        <CreateInvoiceForm />
+      </Suspense>
     </main>
   );
+}
+
+async function CreateInvoiceForm() {
+  const customers = await fetchCustomers();
+  return <Form customers={customers} />;
 }

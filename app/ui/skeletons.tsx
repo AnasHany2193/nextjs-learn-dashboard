@@ -315,6 +315,90 @@ export function LocaleSwitcherSkeleton() {
   );
 }
 
+// Shared by both invoice forms: CreateInvoiceForm and EditInvoiceForm render
+// the identical three fields, differing only in the values filled into them,
+// which a skeleton never shows anyway. One shape, two names, so a field
+// added to either form only has to be added to the skeleton once.
+function InvoiceFormSkeleton() {
+  return (
+    <div className={`${shimmer} relative overflow-hidden`}>
+      <div className="rounded-md bg-gray-50 p-4 md:p-6">
+        {/* Customer Name */}
+        <div className="mb-4">
+          <div className="mb-2 h-4 w-32 rounded-md bg-gray-100" />
+          <div className="h-10 w-full rounded-md bg-gray-100" />
+        </div>
+        {/* Invoice Amount */}
+        <div className="mb-4">
+          <div className="mb-2 h-4 w-24 rounded-md bg-gray-100" />
+          <div className="h-10 w-full rounded-md bg-gray-100" />
+        </div>
+        {/* Invoice Status */}
+        <div className="mb-2 h-4 w-20 rounded-md bg-gray-100" />
+        <div className="rounded-md border border-gray-200 bg-white px-[14px] py-3">
+          <div className="flex gap-4">
+            <div className="h-8 w-24 rounded-full bg-gray-100" />
+            <div className="h-8 w-20 rounded-full bg-gray-100" />
+          </div>
+        </div>
+      </div>
+      <div className="mt-6 flex justify-end gap-4">
+        <div className="h-10 w-24 rounded-lg bg-gray-100" />
+        <div className="h-10 w-28 rounded-lg bg-gray-100" />
+      </div>
+    </div>
+  );
+}
+
+export function EditInvoiceSkeleton() {
+  return <InvoiceFormSkeleton />;
+}
+
+export function CreateInvoiceSkeleton() {
+  return <InvoiceFormSkeleton />;
+}
+
+// Shared by both customer forms, for the same reason. Name and email are
+// each a label bar plus an input-height box; AvatarPicker's closed trigger
+// is that same full-width, input-height shape too (a 24px circle, a label
+// and a chevron inside one bordered bar), so it reuses the block rather
+// than needing its own size.
+function CustomerFormSkeleton() {
+  return (
+    <div className={`${shimmer} relative overflow-hidden`}>
+      <div className="rounded-md bg-gray-50 p-4 md:p-6">
+        {/* Customer Name */}
+        <div className="mb-4">
+          <div className="mb-2 h-4 w-24 rounded-md bg-gray-100" />
+          <div className="h-10 w-full rounded-md bg-gray-100" />
+        </div>
+        {/* Customer Email */}
+        <div className="mb-4">
+          <div className="mb-2 h-4 w-24 rounded-md bg-gray-100" />
+          <div className="h-10 w-full rounded-md bg-gray-100" />
+        </div>
+        {/* Customer Avatar */}
+        <div className="mb-4">
+          <div className="mb-2 h-4 w-20 rounded-md bg-gray-100" />
+          <div className="h-10 w-full rounded-md bg-gray-100" />
+        </div>
+      </div>
+      <div className="mt-6 flex justify-end gap-4">
+        <div className="h-10 w-24 rounded-lg bg-gray-100" />
+        <div className="h-10 w-24 rounded-lg bg-gray-100" />
+      </div>
+    </div>
+  );
+}
+
+export function EditCustomerSkeleton() {
+  return <CustomerFormSkeleton />;
+}
+
+export function CreateCustomerSkeleton() {
+  return <CustomerFormSkeleton />;
+}
+
 export function CustomersTableSkeleton() {
   const t = useTranslations("Customers");
 

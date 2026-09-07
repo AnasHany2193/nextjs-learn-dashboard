@@ -21,12 +21,6 @@ export default async function Page(props: {
   searchParams?: Promise<{ query?: string; page?: string }>;
 }) {
   const t = await getTranslations("Invoices");
-  const searchParams = await props.searchParams;
-
-  const query = searchParams?.query || "";
-  const currentPage = Number(searchParams?.page) || 1;
-
-  const totalPages = await fetchInvoicesPages(query);
 
   return (
     <div className="w-full">
@@ -39,13 +33,29 @@ export default async function Page(props: {
         <CreateInvoice />
       </div>
 
-      <Suspense key={query + currentPage} fallback={<InvoicesTableSkeleton />}>
-        <Table query={query} currentPage={currentPage} />
+      <Suspense fallback={<InvoicesTableSkeleton />}>
+        <InvoicesResults searchParams={props.searchParams} />
       </Suspense>
+    </div>
+  );
+}
 
+async function InvoicesResults({
+  searchParams,
+}: {
+  searchParams?: Promise<{ query?: string; page?: string }>;
+}) {
+  const params = await searchParams; // awaited inside the boundary
+  const query = params?.query || "";
+  const currentPage = Number(params?.page) || 1;
+  const totalPages = await fetchInvoicesPages(query);
+
+  return (
+    <>
+      <Table query={query} currentPage={currentPage} />
       <div className="mt-5 flex w-full justify-center">
         <Pagination totalPages={totalPages} />
       </div>
-    </div>
+    </>
   );
 }

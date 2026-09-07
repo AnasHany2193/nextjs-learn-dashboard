@@ -21,12 +21,6 @@ export default async function Page(props: {
   searchParams?: Promise<{ query?: string; page?: string }>;
 }) {
   const t = await getTranslations("Customers");
-  const searchParams = await props.searchParams;
-
-  const query = searchParams?.query || "";
-  const currentPage = Number(searchParams?.page) || 1;
-
-  const totalPages = await fetchCustomersPages(query);
 
   return (
     <div className="w-full">
@@ -39,14 +33,29 @@ export default async function Page(props: {
         <CreateCustomer />
       </div>
 
-      {/* key remounts the boundary so the skeleton shows on every new query */}
-      <Suspense key={query + currentPage} fallback={<CustomersTableSkeleton />}>
-        <CustomersTable query={query} currentPage={currentPage} />
+      <Suspense fallback={<CustomersTableSkeleton />}>
+        <CustomersResults searchParams={props.searchParams} />
       </Suspense>
+    </div>
+  );
+}
 
+async function CustomersResults({
+  searchParams,
+}: {
+  searchParams?: Promise<{ query?: string; page?: string }>;
+}) {
+  const params = await searchParams; // awaited inside the boundary
+  const query = params?.query || "";
+  const currentPage = Number(params?.page) || 1;
+  const totalPages = await fetchCustomersPages(query);
+
+  return (
+    <>
+      <CustomersTable query={query} currentPage={currentPage} />
       <div className="mt-5 flex w-full justify-center">
         <Pagination totalPages={totalPages} />
       </div>
-    </div>
+    </>
   );
 }

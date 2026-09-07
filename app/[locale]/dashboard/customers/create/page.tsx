@@ -24,8 +24,6 @@ export default async function Page() {
       <Suspense fallback={<CreateInvoiceSkeleton />}>
         <CreateCustomerForm />
       </Suspense>
-
-      <Form />
     </main>
   );
 }

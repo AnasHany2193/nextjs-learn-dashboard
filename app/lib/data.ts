@@ -1,5 +1,5 @@
 import postgres from "postgres";
-import { cacheLife } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 
 import {
   Customer,
@@ -39,6 +39,7 @@ export async function fetchRevenue() {
 
 export async function fetchLatestInvoices() {
   "use cache";
+  cacheTag("invoices");
   cacheLife("minutes");
 
   try {
@@ -58,6 +59,8 @@ export async function fetchLatestInvoices() {
 
 export async function fetchCardData() {
   "use cache";
+  cacheTag("invoices");
+  cacheTag("customers");
   cacheLife("minutes");
 
   try {
@@ -153,6 +156,7 @@ export async function fetchInvoicesPages(query: string) {
 
 export async function fetchInvoiceById(id: string) {
   "use cache";
+  cacheTag("invoices");
   cacheLife("minutes");
 
   try {
@@ -181,6 +185,7 @@ export async function fetchInvoiceById(id: string) {
 
 export async function fetchCustomers() {
   "use cache";
+  cacheTag("customers");
   cacheLife("hours");
 
   try {
@@ -203,7 +208,6 @@ export async function fetchFilteredCustomers(
   query: string,
   currentPage: number,
 ) {
-  
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
   try {
@@ -248,6 +252,7 @@ export async function fetchCustomersPages(query: string) {
 
 export async function fetchCustomerById(id: string) {
   "use cache";
+  cacheTag("customers");
   cacheLife("minutes");
 
   try {

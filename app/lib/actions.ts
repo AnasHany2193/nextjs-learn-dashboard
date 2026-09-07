@@ -3,7 +3,7 @@
 import z from "zod";
 import postgres from "postgres";
 
-import { revalidatePath } from "next/cache";
+import { updateTag } from "next/cache";
 import { redirect } from "@/i18n/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 
@@ -92,7 +92,7 @@ export async function createInvoice(
   }
 
   // Revalidate the cache for the invoices page and redirect the user.
-  revalidatePath("/[locale]/dashboard/invoices", "page");
+  updateTag("invoices");
   redirect({ href: "/dashboard/invoices", locale: await getLocale() });
 }
 
@@ -129,7 +129,7 @@ export async function updateInvoice(
     return { message: "Database Error: Failed to Update Invoice." };
   }
 
-  revalidatePath("/[locale]/dashboard/invoices", "page");
+  updateTag("invoices");
   redirect({ href: "/dashboard/invoices", locale: await getLocale() });
 }
 
@@ -140,7 +140,7 @@ export async function deleteInvoice(id: string): Promise<InvoiceState> {
     return { message: "Database Error: Failed to Delete Invoice." };
   }
 
-  revalidatePath("/[locale]/dashboard/invoices", "page");
+  updateTag("invoices");
   return { message: null };
 }
 
@@ -200,7 +200,7 @@ export async function createCustomer(
   }
 
   // Revalidate the cache for the customers page and redirect the user.
-  revalidatePath("/[locale]/dashboard/customers", "page");
+  updateTag("customers");
   redirect({ href: "/dashboard/customers", locale: await getLocale() });
 }
 
@@ -239,7 +239,7 @@ export async function updateCustomer(
   }
 
   // Revalidate the cache for the customers page and redirect the user.
-  revalidatePath("/[locale]/dashboard/customers", "page");
+  updateTag("customers");
   redirect({ href: "/dashboard/customers", locale: await getLocale() });
 }
 
@@ -267,6 +267,6 @@ export async function deleteCustomer(id: string): Promise<CustomerState> {
     return { message: "Database Error: Failed to Delete Customer." };
   }
 
-  revalidatePath("/[locale]/dashboard/invoices", "page");
+  updateTag("customers");
   return { message: null };
 }
